@@ -145,10 +145,11 @@ function normalize(payload) {
   if (!payload) throw new Error('Invoice data missing.');
   const items = (payload.items || []).map((item, itemIndex) => {
     const rate = num(item.rate);
+    const entryType = item.entry_type === 'pieces' ? 'pieces' : 'weight';
     const entries = (item.entries || [])
       .filter((e) => num(e.quantity) > 0)
       .map((e, entryIndex) => ({
-        entry_type: e.entry_type === 'pieces' ? 'pieces' : 'weight',
+        entry_type: entryType,
         quantity: num(e.quantity),
         amount: num(e.quantity) * rate,
         sort_order: entryIndex

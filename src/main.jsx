@@ -10,7 +10,7 @@ const APP_TAGLINE = 'Offline dispatch register';
 function today() { return new Date().toISOString().slice(0, 10); }
 function money(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function qty(n) { return Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 }); }
-function emptyItem() { return { item_name: '', rate: '', entries: [{ entry_type: 'weight', quantity: '' }] }; }
+function emptyItem() { return { item_name: '', entry_type: 'weight', rate: '', entries: [{ quantity: '' }] }; }
 function blankForm() { return { date: today(), party_name: '', marka: '', buyer_name: '', lr_number: '', transport_name: '', items: [emptyItem()] }; }
 function toForm(invoice) {
   return {
@@ -22,8 +22,9 @@ function toForm(invoice) {
     transport_name: invoice.transport_name || '',
     items: invoice.items?.length ? invoice.items.map(item => ({
       item_name: item.item_name || '',
+      entry_type: item.entries?.[0]?.entry_type === 'pieces' ? 'pieces' : 'weight',
       rate: item.rate ?? '',
-      entries: item.entries?.length ? item.entries.map(e => ({ entry_type: e.entry_type, quantity: e.quantity ?? '' })) : [{ entry_type: 'weight', quantity: '' }]
+      entries: item.entries?.length ? item.entries.map(e => ({ quantity: e.quantity ?? '' })) : [{ quantity: '' }]
     })) : [emptyItem()]
   };
 }
@@ -297,8 +298,8 @@ function FormScreen({ id, onSaved, onCancel }) {
   const updateEntry = (i, j, patch) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: it.entries.map((en, eidx) => eidx === j ? { ...en, ...patch } : en) } : it) }));
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }));
   const removeItem = (i) => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i).length ? f.items.filter((_, idx) => idx !== i) : [emptyItem()] }));
-  const addEntry = (i) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: [...it.entries, { entry_type: 'weight', quantity: '' }] } : it) }));
-  const removeEntry = (i, j) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: it.entries.filter((_, eidx) => eidx !== j).length ? it.entries.filter((_, eidx) => eidx !== j) : [{ entry_type: 'weight', quantity: '' }] } : it) }));
+  const addEntry = (i) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: [...it.entries, { quantity: '' }] } : it) }));
+  const removeEntry = (i, j) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: it.entries.filter((_, eidx) => eidx !== j).length ? it.entries.filter((_, eidx) => eidx !== j) : [{ quantity: '' }] } : it) }));
 
   const save = async () => {
     if (!form.date) return alert('Date is required.');
@@ -326,7 +327,7 @@ function FormScreen({ id, onSaved, onCancel }) {
           <Field label="Date"><input className="input" type="date" value={form.date} onChange={e => updateDate(e.target.value)} /></Field>
           <Field label="Party Name"><input className="input" value={form.party_name} onChange={e => update('party_name', e.target.value)} placeholder="Party name" /></Field>
           <Field label="Marka"><input className="input" value={form.marka} onChange={e => update('marka', e.target.value)} placeholder="Marka" /></Field>
-          <Field label="Buyer Name"><input className="input" value={form.buyer_name} onChange={e => update('buyer_name', e.target.value)} placeholder="Buyer name" /></Field>
+          {/* <Field label="Buyer Name"><input className="input" value={form.buyer_name} onChange={e => update('buyer_name', e.target.value)} placeholder="Buyer name" /></Field> */}
           <Field label="LR Number"><input className="input" value={form.lr_number} onChange={e => update('lr_number', e.target.value)} placeholder="LR number" /></Field>
           <Field label="Transport Name"><input className="input" value={form.transport_name} onChange={e => update('transport_name', e.target.value)} placeholder="Transport name" /></Field>
         </div>
@@ -339,12 +340,29 @@ function FormScreen({ id, onSaved, onCancel }) {
               <div key={i} className="rounded-md border border-blue-200 bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                 <div className="grid gap-3 md:grid-cols-[1fr_160px_120px]">
                   <Field label="Item Name"><input className="input" value={item.item_name} onChange={e => updateItem(i, { item_name: e.target.value })} placeholder="MS Pipe / Steel Plate" /></Field>
-                  <Field label="Rate"><input className="input" type="number" step="0.01" value={item.rate} onChange={e => updateItem(i, { rate: e.target.value })} /></Field>
+                  <Field label="Type">
+                    <select className="input" value={item.entry_type} onChange={e => updateItem(i, { entry_type: e.target.value })}>
+                      <option value="weight">Weight</option>
+                      <option value="pieces">Pieces</option>
+                    </select>
+                  </Field>
                   <div className="flex items-end justify-end"><Button variant="danger" onClick={() => removeItem(i)}><Trash2 size={15} /> Item</Button></div>
                 </div>
                 <div className="mt-4 overflow-hidden rounded-md border border-blue-200 bg-white">
-                  <table className="w-full text-sm"><thead className="bg-blue-50 text-xs uppercase text-blue-900"><tr><th className="th">Type</th><th className="th">Weight / Pieces</th><th className="th text-right hidden">Amount</th><th className="th text-right">Action</th></tr></thead>
-                    <tbody>{item.entries.map((entry, j) => <tr key={j} className="border-t border-blue-100"><td className="td"><select className="input max-w-[160px]" value={entry.entry_type} onChange={e => updateEntry(i, j, { entry_type: e.target.value })}><option value="weight">Weight</option><option value="pieces">Pieces</option></select></td><td className="td"><input className="input max-w-[220px]" type="number" step="0.001" value={entry.quantity} onChange={e => updateEntry(i, j, { quantity: e.target.value })} /></td><td className="td text-right font-bold hidden">₹ {money(Number(entry.quantity || 0) * Number(item.rate || 0))}</td><td className="td text-right"><Button variant="ghost" className="px-3" onClick={() => removeEntry(i, j)}><X size={15} /></Button></td></tr>)}</tbody>
+                  <table className="w-full text-sm"><thead className="bg-blue-50 text-xs uppercase text-blue-900"><tr><th className="th">Weight / Pieces</th><th className="th">Rate</th><th className="th text-right hidden">Amount</th><th className="th text-right">Action</th></tr></thead>
+                    <tbody>{item.entries.map((entry, j) => {
+                      const isLastRow = j === item.entries.length - 1;
+                      return (
+                        <tr key={j} className="border-t border-blue-100">
+                          <td className="td"><input className="input max-w-[220px]" type="number" step="0.001" value={entry.quantity} onChange={e => updateEntry(i, j, { quantity: e.target.value })} /></td>
+                          <td className="td">
+                            {isLastRow ? <input className="input max-w-[160px]" type="number" step="0.01" value={item.rate} onChange={e => updateItem(i, { rate: e.target.value })} /> : <div className="h-[42px]" />}
+                          </td>
+                          <td className="td text-right font-bold hidden">₹ {money(Number(entry.quantity || 0) * Number(item.rate || 0))}</td>
+                          <td className="td text-right"><Button variant="ghost" className="px-3" onClick={() => removeEntry(i, j)}><X size={15} /></Button></td>
+                        </tr>
+                      );
+                    })}</tbody>
                   </table>
                 </div>
                 <div className="mt-3 flex items-center justify-between"><Button variant="secondary" onClick={() => addEntry(i)}><Plus size={15} /> Add Weight/Pieces</Button>
@@ -400,7 +418,9 @@ function InvoicePrint({ invoice }) {
     <section className="print-page mx-auto bg-white p-8 shadow-sm print:shadow-none">
       <div className="mb-5 text-center"><h1 className="text-2xl font-black uppercase tracking-wide">Dispatch Slip</h1><p className="text-sm text-slate-500">{APP_NAME}</p></div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-        <Info label="Dispatch No" value={invoice.bill_no} /><Info label="Date" value={invoice.date} /><Info label="Party Name" value={invoice.party_name} /><Info label="Marka" value={invoice.marka} /><Info label="Buyer Name" value={invoice.buyer_name} /><Info label="LR Number" value={invoice.lr_number} /><Info label="Transport" value={invoice.transport_name} />
+        <Info label="Dispatch No" value={invoice.bill_no} /><Info label="Date" value={invoice.date} /><Info label="Party Name" value={invoice.party_name} /><Info label="Marka" value={invoice.marka} />
+        {/* <Info label="Buyer Name" value={invoice.buyer_name} /> */}
+        <Info label="LR Number" value={invoice.lr_number} /><Info label="Transport" value={invoice.transport_name} />
       </div>
       <table className="mt-6 w-full border-collapse text-sm">
         <thead><tr><th className="print-th">Item Name</th><th className="print-th">Weight/Pcs</th><th className="print-th">Rate</th>
