@@ -10,6 +10,7 @@ const APP_TAGLINE = 'Offline dispatch register';
 function today() { return new Date().toISOString().slice(0, 10); }
 function money(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function qty(n) { return Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 }); }
+function rateValue(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
 function emptyItem() { return { item_name: '', entry_type: 'weight', rate: '', entries: [{ quantity: '' }] }; }
 function blankForm() { return { date: today(), party_name: '', marka: '', buyer_name: '', lr_number: '', transport_name: '', items: [emptyItem()] }; }
 function toForm(invoice) {
@@ -227,30 +228,32 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
           {/* <Button onClick={onCreate}><Plus size={16}/> New Dispatch</Button> */}
         </div>
         <div className="overflow-x-auto">
-          <table className="dispatch-list-table w-full text-left text-sm">
+          <table className="w-full text-left text-sm">
             <thead className="bg-blue-50 text-xs uppercase tracking-wide text-blue-900">
               <tr>
                 <th className="th"><SortHeader label="Date" column="date" sortConfig={sortConfig} onToggle={toggleSort} /></th>
                 <th className="th"><SortHeader label="Dispatch No" column="bill_no" sortConfig={sortConfig} onToggle={toggleSort} /></th>
                 <th className="th"><SortHeader label="Party Name" column="party_name" sortConfig={sortConfig} onToggle={toggleSort} /></th>
                 <th className="th"><SortHeader label="Marka" column="marka" sortConfig={sortConfig} onToggle={toggleSort} /></th>
-                <th className="th"><SortHeader label="Buyer" column="buyer_name" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                {/* <th className="th"><SortHeader label="Buyer" column="buyer_name" sortConfig={sortConfig} onToggle={toggleSort} /></th> */}
                 <th className="th"><SortHeader label="LR No" column="lr_number" sortConfig={sortConfig} onToggle={toggleSort} /></th>
-                <th className="th text-right"><SortHeader label="Total" column="grand_total" sortConfig={sortConfig} onToggle={toggleSort} align="right" /></th>
+                <th className="th text-right hidden"><SortHeader label="Total" column="grand_total" sortConfig={sortConfig} onToggle={toggleSort} align="right" /></th>
                 <th className="th text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {pageRows.map(row => (
                 <tr key={row.id} className="border-t border-blue-100 hover:bg-amber-50/60">
-                  <td className="td">{row.date}</td><td className="td font-bold">{row.bill_no}</td><td className="td">{row.party_name}</td><td className="td">{row.marka}</td><td className="td">{row.buyer_name}</td><td className="td">{row.lr_number}</td><td className="td text-right font-bold">₹ {money(row.grand_total)}</td>
+                  <td className="td">{row.date}</td><td className="td font-bold">{row.bill_no}</td><td className="td">{row.party_name}</td><td className="td">{row.marka}</td>
+                  {/* <td className="td">{row.buyer_name}</td> */}
+                  <td className="td">{row.lr_number}</td><td className="td text-right font-bold hidden">₹ {money(row.grand_total)}</td>
                   <td className="td"><div className="flex justify-end gap-2"><Button variant="secondary" className="px-3" onClick={() => onView(row.id)}><Eye size={15} /></Button><Button variant="secondary" className="px-3" onClick={() => onEdit(row.id)}><Edit size={15} /></Button><Button variant="danger" className="px-3" onClick={() => remove(row.id)}><Trash2 size={15} /></Button></div></td>
                 </tr>
               ))}
-              {!sortedRows.length && <tr><td colSpan="8" className="py-12 text-center text-slate-500">No dispatch entries found. Create your first dispatch.</td></tr>}
+              {!sortedRows.length && <tr><td colSpan="7" className="py-12 text-center text-slate-500">No dispatch entries found. Create your first dispatch.</td></tr>}
               {!!sortedRows.length && Array.from({ length: fillerRowCount }).map((_, index) => (
                 <tr key={`filler-${index}`} className="border-t border-blue-100">
-                  <td colSpan="8" className="td h-[57px] bg-white"></td>
+                  <td colSpan="7" className="td h-[57px] bg-white"></td>
                 </tr>
               ))}
             </tbody>
@@ -349,7 +352,7 @@ function FormScreen({ id, onSaved, onCancel }) {
                   <div className="flex items-end justify-end"><Button variant="danger" onClick={() => removeItem(i)}><Trash2 size={15} /> Item</Button></div>
                 </div>
                 <div className="mt-4 overflow-hidden rounded-md border border-blue-200 bg-white">
-                  <table className="w-full text-sm"><thead className="bg-blue-50 text-xs uppercase text-blue-900"><tr><th className="th">Weight / Pieces</th><th className="th">Rate</th><th className="th text-right hidden">Amount</th><th className="th text-right">Action</th></tr></thead>
+                  <table className="w-full text-sm"><thead className="bg-blue-50 text-xs uppercase text-blue-900"><tr><th className="th">Tray</th><th className="th">Rate</th><th className="th text-right hidden">Amount</th><th className="th text-right">Action</th></tr></thead>
                     <tbody>{item.entries.map((entry, j) => {
                       const isLastRow = j === item.entries.length - 1;
                       return (
@@ -414,6 +417,13 @@ function DetailsScreen({ id, onEdit, onBack }) {
 }
 
 function InvoicePrint({ invoice }) {
+  const totalWeight = invoice.items.reduce((sum, item) => (
+    sum + item.entries.reduce((entrySum, entry) => entry.entry_type === 'weight' ? entrySum + Number(entry.quantity || 0) : entrySum, 0)
+  ), 0);
+  const totalCount = invoice.items.reduce((sum, item) => (
+    sum + item.entries.reduce((entrySum, entry) => entry.entry_type === 'pieces' ? entrySum + Number(entry.quantity || 0) : entrySum, 0)
+  ), 0);
+
   return (
     <section className="print-page mx-auto bg-white p-8 shadow-sm print:shadow-none">
       <div className="mb-5 text-center"><h1 className="text-2xl font-black uppercase tracking-wide">Dispatch Slip</h1><p className="text-sm text-slate-500">{APP_NAME}</p></div>
@@ -423,16 +433,26 @@ function InvoicePrint({ invoice }) {
         <Info label="LR Number" value={invoice.lr_number} /><Info label="Transport" value={invoice.transport_name} />
       </div>
       <table className="mt-6 w-full border-collapse text-sm">
-        <thead><tr><th className="print-th">Item Name</th><th className="print-th">Weight/Pcs</th><th className="print-th">Rate</th>
-        {/* <th className="print-th text-right">Total</th> */}
-        </tr>
+        <thead>
+          <tr>
+            <th className="print-th">Item Name</th>
+            <th className="print-th">Weight/Pcs</th>
+            <th className="print-th">Rate</th>
+          </tr>
         </thead>
-        <tbody>{invoice.items.flatMap(item => item.entries.map((entry, idx) => <tr key={`${item.id}-${entry.id}`}>
-          {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>{item.item_name}</td>}
-          <td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td>
-          {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>₹ {money(item.rate)}</td>}
-          {/* <td className="print-td text-right">₹ {money(entry.amount)}</td> */}
-        </tr>))}
+        <tbody>
+          {invoice.items.flatMap(item => item.entries.map((entry, idx) => (
+            <tr key={`${item.id}-${entry.id}`}>
+              {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>{item.item_name}</td>}
+              <td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td>
+              {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>₹ {rateValue(item.rate)}</td>}
+            </tr>
+          )))}
+          <tr>
+            <td className="print-total">Total</td>
+            <td className="print-total">{qty(totalWeight)} Kg / {qty(totalCount)} Pcs</td>
+            <td className="print-total">₹ {rateValue(invoice.grand_total)}</td>
+          </tr>
         </tbody>
         {/* <tfoot><tr><td className="print-total" colSpan="3">Grand Total</td><td className="print-total text-right">₹ {money(invoice.grand_total)}</td></tr></tfoot> */}
       </table>

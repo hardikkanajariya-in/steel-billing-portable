@@ -106,11 +106,6 @@ body {
   min-height: 100vh;
 }
 
-.dispatch-list-table th:nth-child(7),
-.dispatch-list-table td:nth-child(7) {
-  display: none;
-}
-
 .print-page {
   width: 105mm;
   min-height: 148mm;
