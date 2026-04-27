@@ -4,6 +4,8 @@ import { ArrowLeft, Edit, Eye, Plus, Printer, Save, Search, Trash2, X } from 'lu
 import './styles.css';
 
 const api = window.billingApi;
+const APP_NAME = 'Steel Utensils Dispatch Book';
+const APP_TAGLINE = 'Offline dispatch register';
 
 function today() { return new Date().toISOString().slice(0, 10); }
 function money(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -33,12 +35,12 @@ function calculateTotal(form) {
 }
 
 function Button({ children, className = '', variant = 'primary', ...props }) {
-  const base = 'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed';
+  const base = 'inline-flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
   const variants = {
-    primary: 'bg-slate-950 text-white hover:bg-slate-800',
-    secondary: 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-50',
-    danger: 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100',
-    ghost: 'bg-transparent text-slate-700 hover:bg-slate-100'
+    primary: 'border-blue-900 bg-blue-900 text-white hover:bg-blue-800',
+    secondary: 'border-blue-200 bg-white text-blue-950 hover:bg-blue-50',
+    danger: 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+    ghost: 'border-transparent bg-transparent text-blue-900 hover:bg-blue-100'
   };
   return <button className={`${base} ${variants[variant]} ${className}`} {...props}>{children}</button>;
 }
@@ -54,17 +56,24 @@ function App() {
   const details = (id) => { setSelectedId(id); setView('details'); };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-950">
-      <header className="no-print sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <div className="min-h-screen text-slate-950">
+      <header className="no-print sticky top-0 z-30 border-b-4 border-amber-300 bg-[linear-gradient(180deg,#173b82_0%,#0c2558_100%)] text-white shadow-[0_8px_24px_rgba(7,18,48,0.28)]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
           <div>
-            <h1 className="text-xl font-black tracking-tight">Steel Billing Portable</h1>
-            <p className="text-xs text-slate-500">Offline customer slip billing • Financial year numbering • Portable data folder</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-amber-200">Dispatch Management</p>
+            <h1 className="text-2xl font-black tracking-tight">{APP_NAME}</h1>
+            <p className="text-xs text-blue-100">{APP_TAGLINE}</p>
           </div>
-          {view !== 'list' ? <Button variant="secondary" onClick={goList}><ArrowLeft size={16}/> Back to List</Button> : <Button onClick={create}><Plus size={16}/> Create Bill</Button>}
+          
+        </div>
+        <div className="border-t border-white/10 bg-blue-950/25">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-2 text-[11px] uppercase tracking-[0.18em] text-blue-100">
+            <span>{view === 'list' ? 'Dispatch Register' : view === 'form' ? 'Dispatch Entry' : 'Dispatch Preview'}</span>
+            <span>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-6 py-6">
+      <main className="mx-auto max-w-7xl px-5 py-5">
         {view === 'list' && <ListScreen refreshKey={refreshKey} onCreate={create} onEdit={edit} onView={details} />}
         {view === 'form' && <FormScreen id={selectedId} onSaved={(invoice) => { setSelectedId(invoice.id); setView('details'); }} onCancel={goList} />}
         {view === 'details' && <DetailsScreen id={selectedId} onEdit={() => edit(selectedId)} onBack={goList} />}
@@ -82,20 +91,44 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
   useEffect(() => { load(); api.getAppInfo().then(setAppInfo); }, [refreshKey]);
 
   const remove = async (id) => {
-    if (!confirm('Delete this bill permanently from local data?')) return;
+    if (!confirm('Delete this dispatch entry permanently from local data?')) return;
     await api.deleteInvoice(id);
     await load();
   };
 
+  const stats = useMemo(() => {
+    const todayRows = rows.filter((row) => row.date === today());
+    return {
+      entries: rows.length,
+      todayEntries: todayRows.length,
+      totalAmount: rows.reduce((sum, row) => sum + Number(row.grand_total || 0), 0),
+      todayAmount: todayRows.reduce((sum, row) => sum + Number(row.grand_total || 0), 0)
+    };
+  }, [rows]);
+
   return (
     <div className="space-y-5">
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="tally-panel p-5">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="tally-caption">Overview</p>
+            <h2 className="text-xl font-black text-blue-950">Dispatch Register Dashboard</h2>
+            <p className="text-sm text-slate-600">Quick totals and search controls for your daily steel utensils dispatch book.</p>
+          </div>
+          <Button onClick={onCreate}><Plus size={16}/> Add Dispatch</Button>
+        </div>
+        <div className="mb-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Total Entries" value={stats.entries} />
+          <StatCard label="Today Entries" value={stats.todayEntries} />
+          <StatCard label="Register Total" value={`₹ ${money(stats.totalAmount)}`} />
+          <StatCard label="Today Total" value={`₹ ${money(stats.todayAmount)}`} />
+        </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[280px] flex-1">
             <label className="label">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-3 text-slate-400" size={18}/>
-              <input className="input pl-10" placeholder="Bill no, party, marka, buyer, LR, transport" value={filters.query} onChange={e => setFilters({ ...filters, query: e.target.value })}/>
+              <input className="input pl-10" placeholder="Dispatch no, party, marka, buyer, LR, transport" value={filters.query} onChange={e => setFilters({ ...filters, query: e.target.value })}/>
             </div>
           </div>
           <div><label className="label">From</label><input className="input" type="date" value={filters.dateFrom} onChange={e => setFilters({ ...filters, dateFrom: e.target.value })}/></div>
@@ -103,27 +136,27 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
           <Button onClick={load}><Search size={16}/> Search</Button>
           <Button variant="secondary" onClick={() => { setFilters({ query: '', dateFrom: '', dateTo: '' }); setTimeout(load, 0); }}><X size={16}/> Clear</Button>
         </div>
-        {appInfo?.dbPath && <p className="mt-3 text-xs text-slate-500">Portable database: <span className="font-mono">{appInfo.dbPath}</span></p>}
+        {appInfo?.dbPath && <p className="mt-3 text-xs text-slate-600">Portable database: <span className="font-mono text-blue-950">{appInfo.dbPath}</span></p>}
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-200 p-5">
-          <div><h2 className="text-lg font-black">Billing List</h2><p className="text-sm text-slate-500">Showing latest 500 bills</p></div>
-          <Button onClick={onCreate}><Plus size={16}/> New Bill</Button>
+      <section className="tally-table-shell">
+        <div className="tally-ribbon flex items-center justify-between p-4">
+          <div><h2 className="text-lg font-black">Dispatch Register</h2><p className="text-sm text-blue-100/90">Showing latest 500 dispatch entries</p></div>
+          <Button onClick={onCreate}><Plus size={16}/> New Dispatch</Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-              <tr><th className="th">Date</th><th className="th">Bill No</th><th className="th">Party Name</th><th className="th">Marka</th><th className="th">Buyer</th><th className="th">LR No</th><th className="th text-right">Total</th><th className="th text-right">Actions</th></tr>
+            <thead className="bg-blue-50 text-xs uppercase tracking-wide text-blue-900">
+              <tr><th className="th">Date</th><th className="th">Dispatch No</th><th className="th">Party Name</th><th className="th">Marka</th><th className="th">Buyer</th><th className="th">LR No</th><th className="th text-right">Total</th><th className="th text-right">Actions</th></tr>
             </thead>
             <tbody>
               {rows.map(row => (
-                <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50">
+                <tr key={row.id} className="border-t border-blue-100 hover:bg-amber-50/60">
                   <td className="td">{row.date}</td><td className="td font-bold">{row.bill_no}</td><td className="td">{row.party_name}</td><td className="td">{row.marka}</td><td className="td">{row.buyer_name}</td><td className="td">{row.lr_number}</td><td className="td text-right font-bold">₹ {money(row.grand_total)}</td>
                   <td className="td"><div className="flex justify-end gap-2"><Button variant="secondary" className="px-3" onClick={() => onView(row.id)}><Eye size={15}/></Button><Button variant="secondary" className="px-3" onClick={() => onEdit(row.id)}><Edit size={15}/></Button><Button variant="danger" className="px-3" onClick={() => remove(row.id)}><Trash2 size={15}/></Button></div></td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan="8" className="py-12 text-center text-slate-500">No bills found. Create your first bill.</td></tr>}
+              {!rows.length && <tr><td colSpan="8" className="py-12 text-center text-slate-500">No dispatch entries found. Create your first dispatch.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -178,10 +211,14 @@ function FormScreen({ id, onSaved, onCancel }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="tally-panel p-6">
         <div className="mb-6 flex items-center justify-between">
-          <div><h2 className="text-xl font-black">{isEdit ? 'Edit Bill' : 'Create Bill'}</h2><p className="text-sm text-slate-500">Bill No: <b>{nextBill?.bill_no}</b></p></div>
-          <Button onClick={save}><Save size={16}/> Save Bill</Button>
+          <div>
+            <p className="tally-caption">Dispatch Entry</p>
+            <h2 className="text-xl font-black text-blue-950">{isEdit ? 'Edit Dispatch' : 'Create Dispatch'}</h2>
+            <p className="text-sm text-slate-600">Dispatch No: <b className="text-blue-950">{nextBill?.bill_no}</b></p>
+          </div>
+          <Button onClick={save}><Save size={16}/> Save Dispatch</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <Field label="Date"><input className="input" type="date" value={form.date} onChange={e => updateDate(e.target.value)}/></Field>
@@ -193,19 +230,19 @@ function FormScreen({ id, onSaved, onCancel }) {
         </div>
 
         <div className="mt-8 space-y-5">
-          <div className="flex items-center justify-between"><h3 className="font-black">Items</h3><Button variant="secondary" onClick={addItem}><Plus size={16}/> Add Item</Button></div>
+          <div className="flex items-center justify-between"><h3 className="font-black text-blue-950">Dispatch Items</h3><Button variant="secondary" onClick={addItem}><Plus size={16}/> Add Item</Button></div>
           {form.items.map((item, i) => {
             const itemTotal = item.entries.reduce((s, e) => s + Number(e.quantity || 0) * Number(item.rate || 0), 0);
             return (
-              <div key={i} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div key={i} className="rounded-md border border-blue-200 bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                 <div className="grid gap-3 md:grid-cols-[1fr_160px_120px]">
                   <Field label="Item Name"><input className="input" value={item.item_name} onChange={e => updateItem(i, { item_name: e.target.value })} placeholder="MS Pipe / Steel Plate"/></Field>
                   <Field label="Rate"><input className="input" type="number" step="0.01" value={item.rate} onChange={e => updateItem(i, { rate: e.target.value })}/></Field>
                   <div className="flex items-end justify-end"><Button variant="danger" onClick={() => removeItem(i)}><Trash2 size={15}/> Item</Button></div>
                 </div>
-                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                  <table className="w-full text-sm"><thead className="bg-white text-xs uppercase text-slate-500"><tr><th className="th">Type</th><th className="th">Weight / Pieces</th><th className="th text-right">Amount</th><th className="th text-right">Action</th></tr></thead>
-                    <tbody>{item.entries.map((entry, j) => <tr key={j} className="border-t border-slate-100"><td className="td"><select className="input max-w-[160px]" value={entry.entry_type} onChange={e => updateEntry(i, j, { entry_type: e.target.value })}><option value="weight">Weight</option><option value="pieces">Pieces</option></select></td><td className="td"><input className="input max-w-[220px]" type="number" step="0.001" value={entry.quantity} onChange={e => updateEntry(i, j, { quantity: e.target.value })}/></td><td className="td text-right font-bold">₹ {money(Number(entry.quantity || 0) * Number(item.rate || 0))}</td><td className="td text-right"><Button variant="ghost" className="px-3" onClick={() => removeEntry(i, j)}><X size={15}/></Button></td></tr>)}</tbody>
+                <div className="mt-4 overflow-hidden rounded-md border border-blue-200 bg-white">
+                  <table className="w-full text-sm"><thead className="bg-blue-50 text-xs uppercase text-blue-900"><tr><th className="th">Type</th><th className="th">Weight / Pieces</th><th className="th text-right">Amount</th><th className="th text-right">Action</th></tr></thead>
+                    <tbody>{item.entries.map((entry, j) => <tr key={j} className="border-t border-blue-100"><td className="td"><select className="input max-w-[160px]" value={entry.entry_type} onChange={e => updateEntry(i, j, { entry_type: e.target.value })}><option value="weight">Weight</option><option value="pieces">Pieces</option></select></td><td className="td"><input className="input max-w-[220px]" type="number" step="0.001" value={entry.quantity} onChange={e => updateEntry(i, j, { quantity: e.target.value })}/></td><td className="td text-right font-bold">₹ {money(Number(entry.quantity || 0) * Number(item.rate || 0))}</td><td className="td text-right"><Button variant="ghost" className="px-3" onClick={() => removeEntry(i, j)}><X size={15}/></Button></td></tr>)}</tbody>
                   </table>
                 </div>
                 <div className="mt-3 flex items-center justify-between"><Button variant="secondary" onClick={() => addEntry(i)}><Plus size={15}/> Add Weight/Pieces</Button><b>Item Total: ₹ {money(itemTotal)}</b></div>
@@ -214,17 +251,27 @@ function FormScreen({ id, onSaved, onCancel }) {
           })}
         </div>
       </section>
-      <aside className="no-print h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-slate-500">Bill No</p><p className="text-2xl font-black">{nextBill?.bill_no}</p>
-        <div className="my-5 border-t border-slate-200"></div>
-        <p className="text-sm text-slate-500">Grand Total</p><p className="text-3xl font-black">₹ {money(grandTotal)}</p>
-        <div className="mt-6 grid gap-3"><Button onClick={save}><Save size={16}/> Save Bill</Button><Button variant="secondary" onClick={onCancel}>Cancel</Button></div>
+      <aside className="tally-sidebar no-print h-fit p-6">
+        <p className="tally-caption">Dispatch Summary</p>
+        <h3 className="mb-5 text-lg font-black text-blue-950">Voucher Totals</h3>
+        <div className="space-y-3">
+          <MetaRow label="Dispatch No" value={nextBill?.bill_no} />
+          <MetaRow label="Date" value={form.date} />
+          <MetaRow label="Party" value={form.party_name || '-'} />
+          <MetaRow label="Entries" value={String(form.items.reduce((sum, item) => sum + item.entries.length, 0))} />
+        </div>
+        <div className="my-5 border-t border-blue-200"></div>
+        <p className="text-sm font-bold uppercase tracking-[0.14em] text-blue-800">Grand Total</p>
+        <p className="mt-1 text-3xl font-black text-blue-950">₹ {money(grandTotal)}</p>
+        <div className="mt-6 grid gap-3"><Button onClick={save}><Save size={16}/> Save Dispatch</Button><Button variant="secondary" onClick={onCancel}>Cancel</Button></div>
       </aside>
     </div>
   );
 }
 
 function Field({ label, children }) { return <label className="block"><span className="label">{label}</span>{children}</label>; }
+function StatCard({ label, value }) { return <div className="tally-stat-card"><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700">{label}</p><p className="mt-2 text-2xl font-black text-blue-950">{value}</p></div>; }
+function MetaRow({ label, value }) { return <div className="flex items-center justify-between gap-4 border-b border-blue-100 pb-2 text-sm"><span className="font-bold uppercase tracking-[0.12em] text-blue-800">{label}</span><span className="font-semibold text-slate-700">{value}</span></div>; }
 
 function DetailsScreen({ id, onEdit, onBack }) {
   const [invoice, setInvoice] = useState(null);
@@ -235,8 +282,8 @@ function DetailsScreen({ id, onEdit, onBack }) {
 
   return (
     <div className="space-y-5">
-      <div className="no-print flex items-center justify-between rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div><h2 className="text-xl font-black">Bill {invoice.bill_no}</h2><p className="text-sm text-slate-500">View customer-facing slip and print single copy</p></div>
+      <div className="tally-panel no-print flex items-center justify-between p-5">
+        <div><p className="tally-caption">Dispatch Preview</p><h2 className="text-xl font-black text-blue-950">Dispatch {invoice.bill_no}</h2><p className="text-sm text-slate-600">Review the dispatch slip and print one customer copy.</p></div>
         <div className="flex gap-3"><Button variant="secondary" onClick={onEdit}><Edit size={16}/> Edit</Button><Button onClick={print}><Printer size={16}/> Print</Button><Button variant="secondary" onClick={onBack}>Back</Button></div>
       </div>
       <InvoicePrint invoice={invoice} />
@@ -247,16 +294,16 @@ function DetailsScreen({ id, onEdit, onBack }) {
 function InvoicePrint({ invoice }) {
   return (
     <section className="print-page mx-auto bg-white p-8 shadow-sm print:shadow-none">
-      <div className="mb-5 text-center"><h1 className="text-2xl font-black uppercase tracking-wide">Customer Bill</h1><p className="text-sm text-slate-500">Steel Billing Slip</p></div>
+      <div className="mb-5 text-center"><h1 className="text-2xl font-black uppercase tracking-wide">Dispatch Slip</h1><p className="text-sm text-slate-500">{APP_NAME}</p></div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-        <Info label="Bill No" value={invoice.bill_no}/><Info label="Date" value={invoice.date}/><Info label="Party Name" value={invoice.party_name}/><Info label="Marka" value={invoice.marka}/><Info label="Buyer Name" value={invoice.buyer_name}/><Info label="LR Number" value={invoice.lr_number}/><Info label="Transport" value={invoice.transport_name}/>
+        <Info label="Dispatch No" value={invoice.bill_no}/><Info label="Date" value={invoice.date}/><Info label="Party Name" value={invoice.party_name}/><Info label="Marka" value={invoice.marka}/><Info label="Buyer Name" value={invoice.buyer_name}/><Info label="LR Number" value={invoice.lr_number}/><Info label="Transport" value={invoice.transport_name}/>
       </div>
       <table className="mt-6 w-full border-collapse text-sm">
         <thead><tr><th className="print-th">Item Name</th><th className="print-th">Weight/Pcs</th><th className="print-th">Rate</th><th className="print-th text-right">Total</th></tr></thead>
         <tbody>{invoice.items.map(item => item.entries.map((entry, idx) => <tr key={`${item.id}-${entry.id}`}><td className="print-td">{idx === 0 ? item.item_name : ''}</td><td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td><td className="print-td">₹ {money(item.rate)}</td><td className="print-td text-right">₹ {money(entry.amount)}</td></tr>))}</tbody>
         <tfoot><tr><td className="print-total" colSpan="3">Grand Total</td><td className="print-total text-right">₹ {money(invoice.grand_total)}</td></tr></tfoot>
       </table>
-      <div className="mt-8 flex justify-between text-xs text-slate-500"><span>Generated by Steel Billing Portable</span><span>Customer Copy</span></div>
+      <div className="mt-8 flex justify-between text-xs text-slate-500"><span>Generated by {APP_NAME}</span><span>Customer Copy</span></div>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 {
   "name": "steel-billing-portable",
   "version": "1.0.0",
-  "description": "Portable offline Windows billing and invoicing app for steel industry slips.",
+  "description": "Portable offline Windows app for steel utensils dispatch entries and slips.",
   "main": "electron/main.js",
   "private": true,
   "packageManager": "pnpm@10.32.1",
@@ -30,15 +30,15 @@
     "wait-on": "latest"
   },
   "build": {
-    "appId": "in.hardikkanajariya.steelbillingportable",
-    "productName": "Steel Billing Portable",
+    "appId": "in.hardikkanajariya.steelutensilsdispatchbook",
+    "productName": "Steel Utensils Dispatch Book",
     "asar": true,
     "files": ["dist/**/*", "electron/**/*", "package.json", "node_modules/sql.js/dist/sql-wasm.wasm"],
     "extraResources": [{ "from": "node_modules/sql.js/dist/sql-wasm.wasm", "to": "sql-wasm.wasm" }],
     "directories": { "output": "release" },
     "win": {
       "target": [{ "target": "portable", "arch": ["x64"] }],
-      "artifactName": "SteelBillingPortable-${version}.${ext}"
+      "artifactName": "SteelUtensilsDispatchBook-${version}.${ext}"
     }
   },
   "pnpm": {

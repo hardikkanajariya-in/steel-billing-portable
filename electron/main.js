@@ -8,7 +8,7 @@ function createWindow() {
     height: 820,
     minWidth: 1024,
     minHeight: 700,
-    title: 'Steel Billing Portable',
+    title: 'Steel Utensils Dispatch Book',
     backgroundColor: '#f8fafc',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
