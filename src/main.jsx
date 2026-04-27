@@ -11,7 +11,11 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function money(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function qty(n) { return Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 3 }); }
 function rateValue(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
-function emptyItem() { return { item_name: '', entry_type: 'weight', rate: '', entries: [{ quantity: '' }] }; }
+function normalizeEntryType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'pieces' || normalized === 'piece' || normalized === 'pcs' ? 'pieces' : 'weight';
+}
+function emptyItem() { return { item_name: '', entry_type: 'weight', rate: '', entries: [{ entry_type: 'weight', quantity: '' }] }; }
 function blankForm() { return { date: today(), party_name: '', marka: '', buyer_name: '', lr_number: '', transport_name: '', items: [emptyItem()] }; }
 function toForm(invoice) {
   return {
@@ -23,9 +27,11 @@ function toForm(invoice) {
     transport_name: invoice.transport_name || '',
     items: invoice.items?.length ? invoice.items.map(item => ({
       item_name: item.item_name || '',
-      entry_type: item.entries?.[0]?.entry_type === 'pieces' ? 'pieces' : 'weight',
+      entry_type: normalizeEntryType(item.entry_type || item.entries?.[0]?.entry_type),
       rate: item.rate ?? '',
-      entries: item.entries?.length ? item.entries.map(e => ({ quantity: e.quantity ?? '' })) : [{ quantity: '' }]
+      entries: item.entries?.length
+        ? item.entries.map(e => ({ entry_type: normalizeEntryType(e.entry_type || item.entry_type), quantity: e.quantity ?? '' }))
+        : [{ entry_type: normalizeEntryType(item.entry_type), quantity: '' }]
     })) : [emptyItem()]
   };
 }
@@ -297,12 +303,24 @@ function FormScreen({ id, onSaved, onCancel }) {
 
   const update = (key, value) => setForm(f => ({ ...f, [key]: value }));
   const updateDate = async (value) => { update('date', value); if (!isEdit) setNextBill(await api.getNextBillNo(value)); };
-  const updateItem = (i, patch) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, ...patch } : it) }));
+  const updateItem = (i, patch) => setForm(f => ({
+    ...f,
+    items: f.items.map((it, idx) => {
+      if (idx !== i) return it;
+      const nextItem = { ...it, ...patch };
+      if (Object.prototype.hasOwnProperty.call(patch, 'entry_type')) {
+        const nextType = normalizeEntryType(patch.entry_type);
+        nextItem.entry_type = nextType;
+        nextItem.entries = (nextItem.entries || []).map((entry) => ({ ...entry, entry_type: nextType }));
+      }
+      return nextItem;
+    })
+  }));
   const updateEntry = (i, j, patch) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: it.entries.map((en, eidx) => eidx === j ? { ...en, ...patch } : en) } : it) }));
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }));
   const removeItem = (i) => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i).length ? f.items.filter((_, idx) => idx !== i) : [emptyItem()] }));
-  const addEntry = (i) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: [...it.entries, { quantity: '' }] } : it) }));
-  const removeEntry = (i, j) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: it.entries.filter((_, eidx) => eidx !== j).length ? it.entries.filter((_, eidx) => eidx !== j) : [{ quantity: '' }] } : it) }));
+  const addEntry = (i) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: [...it.entries, { entry_type: normalizeEntryType(it.entry_type), quantity: '' }] } : it) }));
+  const removeEntry = (i, j) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, entries: it.entries.filter((_, eidx) => eidx !== j).length ? it.entries.filter((_, eidx) => eidx !== j) : [{ entry_type: normalizeEntryType(it.entry_type), quantity: '' }] } : it) }));
 
   const save = async () => {
     if (!form.date) return alert('Date is required.');
@@ -417,13 +435,6 @@ function DetailsScreen({ id, onEdit, onBack }) {
 }
 
 function InvoicePrint({ invoice }) {
-  const totalWeight = invoice.items.reduce((sum, item) => (
-    sum + item.entries.reduce((entrySum, entry) => entry.entry_type === 'weight' ? entrySum + Number(entry.quantity || 0) : entrySum, 0)
-  ), 0);
-  const totalCount = invoice.items.reduce((sum, item) => (
-    sum + item.entries.reduce((entrySum, entry) => entry.entry_type === 'pieces' ? entrySum + Number(entry.quantity || 0) : entrySum, 0)
-  ), 0);
-
   return (
     <section className="print-page mx-auto bg-white p-8 shadow-sm print:shadow-none">
       <div className="mb-5 text-center"><h1 className="text-2xl font-black uppercase tracking-wide">Dispatch Slip</h1><p className="text-sm text-slate-500">{APP_NAME}</p></div>
@@ -441,18 +452,23 @@ function InvoicePrint({ invoice }) {
           </tr>
         </thead>
         <tbody>
-          {invoice.items.flatMap(item => item.entries.map((entry, idx) => (
-            <tr key={`${item.id}-${entry.id}`}>
-              {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>{item.item_name}</td>}
-              <td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td>
-              {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>₹ {rateValue(item.rate)}</td>}
-            </tr>
-          )))}
-          <tr>
-            <td className="print-total">Total</td>
-            <td className="print-total">{qty(totalWeight)} Kg / {qty(totalCount)} Pcs</td>
-            <td className="print-total">₹ {rateValue(invoice.grand_total)}</td>
-          </tr>
+          {invoice.items.flatMap(item => {
+            const itemUnit = normalizeEntryType(item.entry_type || item.entries?.[0]?.entry_type) === 'pieces' ? 'Pcs' : 'Kg';
+            const itemTotalQuantity = item.entries.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0);
+
+            return [
+              ...item.entries.map((entry, idx) => (
+                <tr key={`${item.id}-${entry.id}`}>
+                  {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length + 1}>{item.item_name}</td>}
+                  <td className="print-td">{qty(entry.quantity)} {normalizeEntryType(entry.entry_type || item.entry_type) === 'pieces' ? 'Pcs' : 'Kg'}</td>
+                  {idx === 0 && <td className="print-td align-bottom text-center font-semibold pb-3" rowSpan={item.entries.length + 1}>₹ {rateValue(item.rate)}</td>}
+                </tr>
+              )),
+              <tr key={`${item.id}-total`}>
+                <td className="print-total text-right">Total: {qty(itemTotalQuantity)} {itemUnit}</td>
+              </tr>
+            ];
+          })}
         </tbody>
         {/* <tfoot><tr><td className="print-total" colSpan="3">Grand Total</td><td className="print-total text-right">₹ {money(invoice.grand_total)}</td></tr></tfoot> */}
       </table>

@@ -102,6 +102,10 @@ function one(sql, params = []) {
 
 function nowIso() { return new Date().toISOString(); }
 function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+function normalizeEntryType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'pieces' || normalized === 'piece' || normalized === 'pcs' ? 'pieces' : 'weight';
+}
 
 function getFinancialYear(dateString) {
   const date = dateString ? new Date(`${dateString}T00:00:00`) : new Date();
@@ -145,11 +149,11 @@ function normalize(payload) {
   if (!payload) throw new Error('Invoice data missing.');
   const items = (payload.items || []).map((item, itemIndex) => {
     const rate = num(item.rate);
-    const entryType = item.entry_type === 'pieces' ? 'pieces' : 'weight';
+    const entryType = normalizeEntryType(item.entry_type || item.entries?.[0]?.entry_type);
     const entries = (item.entries || [])
       .filter((e) => num(e.quantity) > 0)
       .map((e, entryIndex) => ({
-        entry_type: entryType,
+        entry_type: normalizeEntryType(e.entry_type || entryType),
         quantity: num(e.quantity),
         amount: num(e.quantity) * rate,
         sort_order: entryIndex
