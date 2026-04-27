@@ -226,7 +226,7 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
           {/* <Button onClick={onCreate}><Plus size={16}/> New Dispatch</Button> */}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="dispatch-list-table w-full text-left text-sm">
             <thead className="bg-blue-50 text-xs uppercase tracking-wide text-blue-900">
               <tr>
                 <th className="th"><SortHeader label="Date" column="date" sortConfig={sortConfig} onToggle={toggleSort} /></th>
@@ -409,7 +409,8 @@ function InvoicePrint({ invoice }) {
         </thead>
         <tbody>{invoice.items.flatMap(item => item.entries.map((entry, idx) => <tr key={`${item.id}-${entry.id}`}>
           {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>{item.item_name}</td>}
-          <td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td><td className="print-td">₹ {money(item.rate)}</td>
+          <td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td>
+          {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>₹ {money(item.rate)}</td>}
           {/* <td className="print-td text-right">₹ {money(entry.amount)}</td> */}
         </tr>))}
         </tbody>
