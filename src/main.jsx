@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ArrowLeft, Edit, Eye, Plus, Printer, Save, Search, Trash2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, ChevronDown, ChevronUp, Edit, Eye, Plus, Printer, Save, Search, Trash2, X } from 'lucide-react';
 import './styles.css';
 
 const api = window.billingApi;
@@ -33,6 +33,10 @@ function calculateTotal(form) {
     return sum + (item.entries || []).reduce((s, e) => s + Number(e.quantity || 0) * rate, 0);
   }, 0);
 }
+function compareValues(a, b) {
+  if (typeof a === 'number' || typeof b === 'number') return Number(a || 0) - Number(b || 0);
+  return String(a || '').localeCompare(String(b || ''), 'en', { numeric: true, sensitivity: 'base' });
+}
 
 function Button({ children, className = '', variant = 'primary', ...props }) {
   const base = 'inline-flex items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
@@ -43,6 +47,22 @@ function Button({ children, className = '', variant = 'primary', ...props }) {
     ghost: 'border-transparent bg-transparent text-blue-900 hover:bg-blue-100'
   };
   return <button className={`${base} ${variants[variant]} ${className}`} {...props}>{children}</button>;
+}
+
+function SortHeader({ label, column, sortConfig, onToggle, align = 'left' }) {
+  const active = sortConfig.key === column;
+  const Icon = active ? (sortConfig.direction === 'asc' ? ChevronUp : ChevronDown) : ArrowUpDown;
+
+  return (
+    <button
+      type="button"
+      className={`inline-flex items-center gap-1 font-inherit ${align === 'right' ? 'ml-auto' : ''}`}
+      onClick={() => onToggle(column)}
+    >
+      <span>{label}</span>
+      <Icon size={14} />
+    </button>
+  );
 }
 
 function App() {
@@ -86,8 +106,13 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
   const [rows, setRows] = useState([]);
   const [filters, setFilters] = useState({ query: '', dateFrom: '', dateTo: '' });
   const [appInfo, setAppInfo] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
-  async function load() { setRows(await api.listInvoices(filters)); }
+  async function load(nextFilters = filters) {
+    setRows(await api.listInvoices(nextFilters));
+  }
   useEffect(() => { load(); api.getAppInfo().then(setAppInfo); }, [refreshKey]);
 
   const remove = async (id) => {
@@ -105,6 +130,47 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
       todayAmount: todayRows.reduce((sum, row) => sum + Number(row.grand_total || 0), 0)
     };
   }, [rows]);
+
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.key) return rows;
+
+    return [...rows].sort((left, right) => {
+      const leftValue = sortConfig.key === 'grand_total' ? Number(left[sortConfig.key] || 0) : left[sortConfig.key];
+      const rightValue = sortConfig.key === 'grand_total' ? Number(right[sortConfig.key] || 0) : right[sortConfig.key];
+      const result = compareValues(leftValue, rightValue);
+      return sortConfig.direction === 'asc' ? result : -result;
+    });
+  }, [rows, sortConfig]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageRows = sortedRows.slice(pageStart, pageStart + pageSize);
+  const fillerRowCount = Math.max(pageSize - pageRows.length, 0);
+
+  useEffect(() => {
+    if (page !== currentPage) setPage(currentPage);
+  }, [page, currentPage]);
+
+  const runSearch = async () => {
+    setPage(1);
+    await load(filters);
+  };
+
+  const clearFilters = async () => {
+    const nextFilters = { query: '', dateFrom: '', dateTo: '' };
+    setFilters(nextFilters);
+    setPage(1);
+    await load(nextFilters);
+  };
+
+  const toggleSort = (key) => {
+    setPage(1);
+    setSortConfig((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
 
   return (
     <div className="space-y-5">
@@ -133,32 +199,68 @@ function ListScreen({ refreshKey, onCreate, onEdit, onView }) {
           </div>
           <div><label className="label">From</label><input className="input" type="date" value={filters.dateFrom} onChange={e => setFilters({ ...filters, dateFrom: e.target.value })}/></div>
           <div><label className="label">To</label><input className="input" type="date" value={filters.dateTo} onChange={e => setFilters({ ...filters, dateTo: e.target.value })}/></div>
-          <Button onClick={load}><Search size={16}/> Search</Button>
-          <Button variant="secondary" onClick={() => { setFilters({ query: '', dateFrom: '', dateTo: '' }); setTimeout(load, 0); }}><X size={16}/> Clear</Button>
+          <Button onClick={runSearch}><Search size={16}/> Search</Button>
+          <Button variant="secondary" onClick={clearFilters}><X size={16}/> Clear</Button>
         </div>
-        {appInfo?.dbPath && <p className="mt-3 text-xs text-slate-600">Portable database: <span className="font-mono text-blue-950">{appInfo.dbPath}</span></p>}
       </section>
 
       <section className="tally-table-shell">
         <div className="tally-ribbon flex items-center justify-between p-4">
-          <div><h2 className="text-lg font-black">Dispatch Register</h2><p className="text-sm text-blue-100/90">Showing latest 500 dispatch entries</p></div>
-          <Button onClick={onCreate}><Plus size={16}/> New Dispatch</Button>
+          <div><h2 className="text-lg font-black">Dispatch Register</h2><p className="text-sm text-blue-100/90">Showing {sortedRows.length ? `${pageStart + 1}-${Math.min(pageStart + pageRows.length, sortedRows.length)}` : '0'} of {sortedRows.length} dispatch entries</p></div>
+          <div className="flex items-end gap-3">
+            <label className="flex flex-col gap-1 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-100">
+              <span>Rows</span>
+              <select
+                className="input min-w-[92px] border-white/20 bg-white text-blue-950"
+                value={pageSize}
+                onChange={(e) => {
+                  const nextSize = Math.max(10, Number(e.target.value) || 10);
+                  setPageSize(nextSize);
+                  setPage(1);
+                }}
+              >
+                {[10, 20, 30, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+          </div>
+          {/* <Button onClick={onCreate}><Plus size={16}/> New Dispatch</Button> */}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-blue-50 text-xs uppercase tracking-wide text-blue-900">
-              <tr><th className="th">Date</th><th className="th">Dispatch No</th><th className="th">Party Name</th><th className="th">Marka</th><th className="th">Buyer</th><th className="th">LR No</th><th className="th text-right">Total</th><th className="th text-right">Actions</th></tr>
+              <tr>
+                <th className="th"><SortHeader label="Date" column="date" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                <th className="th"><SortHeader label="Dispatch No" column="bill_no" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                <th className="th"><SortHeader label="Party Name" column="party_name" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                <th className="th"><SortHeader label="Marka" column="marka" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                <th className="th"><SortHeader label="Buyer" column="buyer_name" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                <th className="th"><SortHeader label="LR No" column="lr_number" sortConfig={sortConfig} onToggle={toggleSort} /></th>
+                <th className="th text-right"><SortHeader label="Total" column="grand_total" sortConfig={sortConfig} onToggle={toggleSort} align="right" /></th>
+                <th className="th text-right">Actions</th>
+              </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
+              {pageRows.map(row => (
                 <tr key={row.id} className="border-t border-blue-100 hover:bg-amber-50/60">
                   <td className="td">{row.date}</td><td className="td font-bold">{row.bill_no}</td><td className="td">{row.party_name}</td><td className="td">{row.marka}</td><td className="td">{row.buyer_name}</td><td className="td">{row.lr_number}</td><td className="td text-right font-bold">₹ {money(row.grand_total)}</td>
                   <td className="td"><div className="flex justify-end gap-2"><Button variant="secondary" className="px-3" onClick={() => onView(row.id)}><Eye size={15}/></Button><Button variant="secondary" className="px-3" onClick={() => onEdit(row.id)}><Edit size={15}/></Button><Button variant="danger" className="px-3" onClick={() => remove(row.id)}><Trash2 size={15}/></Button></div></td>
                 </tr>
               ))}
-              {!rows.length && <tr><td colSpan="8" className="py-12 text-center text-slate-500">No dispatch entries found. Create your first dispatch.</td></tr>}
+              {!sortedRows.length && <tr><td colSpan="8" className="py-12 text-center text-slate-500">No dispatch entries found. Create your first dispatch.</td></tr>}
+              {!!sortedRows.length && Array.from({ length: fillerRowCount }).map((_, index) => (
+                <tr key={`filler-${index}`} className="border-t border-blue-100">
+                  <td colSpan="8" className="td h-[57px] bg-white"></td>
+                </tr>
+              ))}
             </tbody>
           </table>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-blue-100 bg-white px-4 py-3 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
+          <p>Page {currentPage} of {totalPages}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setPage(currentPage - 1)} disabled={currentPage === 1}>Previous</Button>
+            <Button variant="secondary" onClick={() => setPage(currentPage + 1)} disabled={currentPage === totalPages || !sortedRows.length}>Next</Button>
+          </div>
         </div>
       </section>
     </div>

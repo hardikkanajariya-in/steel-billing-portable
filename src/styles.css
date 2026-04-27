@@ -106,12 +106,24 @@ body {
   min-height: 100vh;
 }
 
-.print-page { width: 148mm; min-height: 210mm; }
+.print-page {
+  width: 105mm;
+  min-height: 148mm;
+  max-width: calc(100vw - 2rem);
+  box-sizing: border-box;
+  padding: 6mm !important;
+}
 
 @media print {
-  @page { size: A5 portrait; margin: 8mm; }
+  @page { size: 105mm 148mm; margin: 0; }
   body { background: white !important; }
   .no-print, header { display: none !important; }
   main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
-  .print-page { width: auto; min-height: auto; padding: 0 !important; margin: 0 !important; box-shadow: none !important; }
+  .print-page {
+    width: 105mm !important;
+    min-height: 148mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
 }

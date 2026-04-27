@@ -1,5 +1,5 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const db = require('./database');
 
 function createWindow() {
@@ -10,12 +10,14 @@ function createWindow() {
     minHeight: 700,
     title: 'Steel Utensils Dispatch Book',
     backgroundColor: '#f8fafc',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
+  win.removeMenu();
   if (process.env.VITE_DEV_SERVER_URL) win.loadURL(process.env.VITE_DEV_SERVER_URL);
   else win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 }
@@ -33,6 +35,7 @@ function registerIpc() {
 app.whenReady().then(async () => {
   await db.initDatabase();
   registerIpc();
+  Menu.setApplicationMenu(null);
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

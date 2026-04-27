@@ -60,9 +60,9 @@ Avoid placing it inside `C:\Program Files\` because Windows may block data write
 
 ## Print size
 
-The print template is currently A5 portrait. If your actual paper size is different, update this in `src/styles.css`:
+The print template is currently set to a small slip format close to A6 portrait. If your actual paper size is different, update this in `src/styles.css`:
 
 ```css
-@page { size: A5 portrait; margin: 8mm; }
-.print-page { width: 148mm; min-height: 210mm; }
+@page { size: 105mm 148mm; margin: 0; }
+.print-page { width: 105mm; min-height: 148mm; }
 ```
