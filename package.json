@@ -1,0 +1,47 @@
+{
+  "name": "steel-billing-portable",
+  "version": "1.0.0",
+  "description": "Portable offline Windows billing and invoicing app for steel industry slips.",
+  "main": "electron/main.js",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "ensure:electron": "node scripts/ensure-electron.mjs",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"pnpm run ensure:electron && wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "vite build",
+    "start": "pnpm run ensure:electron && electron .",
+    "dist": "pnpm build && electron-builder --win portable",
+    "dist:dir": "pnpm build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "sql.js": "latest"
+  },
+  "devDependencies": {
+    "autoprefixer": "latest",
+    "concurrently": "latest",
+    "cross-env": "latest",
+    "electron": "latest",
+    "electron-builder": "latest",
+    "lucide-react": "latest",
+    "@tailwindcss/postcss": "latest",
+    "postcss": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwindcss": "latest",
+    "vite": "latest",
+    "wait-on": "latest"
+  },
+  "build": {
+    "appId": "in.hardikkanajariya.steelbillingportable",
+    "productName": "Steel Billing Portable",
+    "asar": true,
+    "files": ["dist/**/*", "electron/**/*", "package.json", "node_modules/sql.js/dist/sql-wasm.wasm"],
+    "extraResources": [{ "from": "node_modules/sql.js/dist/sql-wasm.wasm", "to": "sql-wasm.wasm" }],
+    "directories": { "output": "release" },
+    "win": {
+      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "artifactName": "SteelBillingPortable-${version}.${ext}"
+    }
+  }
+}
