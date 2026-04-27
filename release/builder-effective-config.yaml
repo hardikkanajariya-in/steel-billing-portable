@@ -1,0 +1,22 @@
+directories:
+  output: release
+  buildResources: build
+appId: in.hardikkanajariya.steelutensilsdispatchbook
+productName: Steel Utensils Dispatch Book
+asar: true
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - package.json
+      - node_modules/sql.js/dist/sql-wasm.wasm
+extraResources:
+  - from: node_modules/sql.js/dist/sql-wasm.wasm
+    to: sql-wasm.wasm
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  artifactName: SteelUtensilsDispatchBook-${version}.${ext}
+electronVersion: 41.3.0
