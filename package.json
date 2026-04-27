@@ -1,6 +1,6 @@
 {
   "name": "steel-billing-portable",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Portable offline Windows app for steel utensils dispatch entries and slips.",
   "main": "electron/main.js",
   "private": true,
@@ -52,8 +52,18 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
