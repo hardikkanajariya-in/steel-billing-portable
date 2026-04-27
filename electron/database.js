@@ -5,6 +5,7 @@ const initSqlJs = require('sql.js');
 let db;
 let dbPath;
 let dataDir;
+let dataLocation;
 
 function getElectronApp() {
   try {
@@ -18,8 +19,34 @@ function getElectronApp() {
 
 function getBaseDir() {
   const electronApp = getElectronApp();
-  if (electronApp?.isPackaged) return path.dirname(process.execPath);
-  return path.join(__dirname, '..');
+  if (!electronApp?.isPackaged) {
+    return {
+      baseDir: path.join(__dirname, '..'),
+      source: 'project-root'
+    };
+  }
+
+  const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
+  if (portableDir) {
+    return {
+      baseDir: portableDir,
+      source: 'portable-executable-dir'
+    };
+  }
+
+  const portableFile = process.env.PORTABLE_EXECUTABLE_FILE;
+  if (portableFile) {
+    return {
+      baseDir: path.dirname(portableFile),
+      source: 'portable-executable-file'
+    };
+  }
+
+  const exePath = typeof electronApp.getPath === 'function' ? electronApp.getPath('exe') : process.execPath;
+  return {
+    baseDir: path.dirname(exePath),
+    source: 'exe-path'
+  };
 }
 
 function getWasmPath() {
@@ -29,7 +56,8 @@ function getWasmPath() {
 }
 
 async function initDatabase() {
-  dataDir = path.join(getBaseDir(), 'data');
+  dataLocation = getBaseDir();
+  dataDir = path.join(dataLocation.baseDir, 'data');
   fs.mkdirSync(dataDir, { recursive: true });
   dbPath = path.join(dataDir, 'billing.sqlite');
   const SQL = await initSqlJs({ locateFile: () => getWasmPath() });
@@ -477,7 +505,12 @@ function deleteInvoice(id) {
 }
 
 function getAppInfo() {
-  return { dbPath, dataDir, isPackaged: Boolean(getElectronApp()?.isPackaged) };
+  return {
+    dbPath,
+    dataDir,
+    dataLocation: dataLocation?.source || null,
+    isPackaged: Boolean(getElectronApp()?.isPackaged)
+  };
 }
 
 function seedDemoData() {
