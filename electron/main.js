@@ -1,9 +1,11 @@
 const path = require('path');
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const db = require('./database');
+const { buildInvoicePdfHtml } = require('./print-template');
 
 let appBootState = 'loading';
 let ipcRegistered = false;
+const APP_NAME = 'Steel Utensils Dispatch Book';
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -104,8 +106,46 @@ function registerIpc() {
   ipcMain.handle('invoices:update', (_e, args) => db.updateInvoice(args.id, args.payload));
   ipcMain.handle('invoices:delete', (_e, id) => db.deleteInvoice(id));
   ipcMain.handle('invoices:next-bill-no', (_e, date) => db.getNextBillInfo(date));
+  ipcMain.handle('invoices:generate-pdf', (_e, invoice) => generateInvoicePdf(invoice));
   ipcMain.handle('app:info', () => db.getAppInfo());
   ipcRegistered = true;
+}
+
+function sanitizeFileName(value) {
+  return String(value || 'dispatch-slip')
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function generateInvoicePdf(invoice) {
+  const pdfWindow = new BrowserWindow({
+    show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#ffffff'
+  });
+
+  try {
+    const html = buildInvoicePdfHtml(invoice, APP_NAME);
+    await pdfWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`);
+    await pdfWindow.webContents.executeJavaScript(
+      'document.fonts ? document.fonts.ready.then(() => true) : true',
+      true
+    ).catch(() => true);
+
+    const pdfBuffer = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 }
+    });
+
+    return {
+      base64: pdfBuffer.toString('base64'),
+      fileName: `${sanitizeFileName(invoice?.bill_no)}.pdf`
+    };
+  } finally {
+    if (!pdfWindow.isDestroyed()) pdfWindow.destroy();
+  }
 }
 
 async function bootstrapApplication(win) {

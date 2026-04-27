@@ -106,6 +106,10 @@ body {
   min-height: 100vh;
 }
 
+.pdf-preview-frame {
+  border: 0;
+}
+
 .print-page {
   width: 105mm;
   min-height: 148mm;

@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('billingApi', {
   updateInvoice: (id, payload) => ipcRenderer.invoke('invoices:update', { id, payload }),
   deleteInvoice: (id) => ipcRenderer.invoke('invoices:delete', id),
   getNextBillNo: (date) => ipcRenderer.invoke('invoices:next-bill-no', date),
+  generateInvoicePdf: (invoice) => ipcRenderer.invoke('invoices:generate-pdf', invoice),
   getAppInfo: () => ipcRenderer.invoke('app:info')
 });

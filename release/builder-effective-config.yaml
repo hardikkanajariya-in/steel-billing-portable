@@ -15,8 +15,16 @@ extraResources:
     to: sql-wasm.wasm
 win:
   target:
+    - target: nsis
+      arch:
+        - x64
     - target: portable
       arch:
         - x64
-  artifactName: SteelUtensilsDispatchBook-${version}.${ext}
+nsis:
+  artifactName: SteelUtensilsDispatchBook-Setup-${version}.${ext}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+portable:
+  artifactName: SteelUtensilsDispatchBook-Portable-${version}.${ext}
 electronVersion: 41.3.0
