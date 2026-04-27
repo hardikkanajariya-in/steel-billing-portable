@@ -9,7 +9,9 @@
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "build": "vite build",
     "start": "electron .",
-    "dist": "pnpm build && electron-builder --win portable",
+    "dist": "pnpm build && electron-builder --win nsis portable",
+    "dist:installer": "pnpm build && electron-builder --win nsis",
+    "dist:portable": "pnpm build && electron-builder --win portable",
     "dist:dir": "pnpm build && electron-builder --dir"
   },
   "dependencies": {
@@ -37,8 +39,18 @@
     "extraResources": [{ "from": "node_modules/sql.js/dist/sql-wasm.wasm", "to": "sql-wasm.wasm" }],
     "directories": { "output": "release" },
     "win": {
-      "target": [{ "target": "portable", "arch": ["x64"] }],
-      "artifactName": "SteelUtensilsDispatchBook-${version}.${ext}"
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "artifactName": "SteelUtensilsDispatchBook-Setup-${version}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "SteelUtensilsDispatchBook-Portable-${version}.${ext}"
     }
   },
   "pnpm": {

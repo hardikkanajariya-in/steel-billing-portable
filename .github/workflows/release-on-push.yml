@@ -50,7 +50,7 @@ jobs:
           $newVersion = $newVersion.TrimStart('v')
           "version=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Build portable release
+      - name: Build installer and portable release
         run: pnpm dist
 
       - name: Commit version bump and tag
@@ -70,6 +70,7 @@ jobs:
         shell: pwsh
         run: |
           gh release create "v${{ steps.version.outputs.version }}" `
-            "release/SteelUtensilsDispatchBook-${{ steps.version.outputs.version }}.exe" `
+            "release/SteelUtensilsDispatchBook-Setup-${{ steps.version.outputs.version }}.exe" `
+            "release/SteelUtensilsDispatchBook-Portable-${{ steps.version.outputs.version }}.exe" `
             --title "v${{ steps.version.outputs.version }}" `
             --generate-notes

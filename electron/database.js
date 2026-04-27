@@ -6,6 +6,7 @@ let db;
 let dbPath;
 let dataDir;
 let dataLocation;
+const DB_SCHEMA_VERSION = 1;
 
 function getElectronApp() {
   try {
@@ -61,9 +62,10 @@ async function initDatabase() {
   fs.mkdirSync(dataDir, { recursive: true });
   dbPath = path.join(dataDir, 'billing.sqlite');
   const SQL = await initSqlJs({ locateFile: () => getWasmPath() });
-  db = fs.existsSync(dbPath) ? new SQL.Database(fs.readFileSync(dbPath)) : new SQL.Database();
-  runMigrations();
-  saveDatabase();
+  const hasExistingDatabase = fs.existsSync(dbPath);
+  db = hasExistingDatabase ? new SQL.Database(fs.readFileSync(dbPath)) : new SQL.Database();
+  const migrated = runMigrations();
+  if (!hasExistingDatabase || migrated) saveDatabase();
 }
 
 function saveDatabase() {
@@ -71,8 +73,12 @@ function saveDatabase() {
 }
 
 function runMigrations() {
+  db.run('PRAGMA foreign_keys = ON;');
+
+  const currentVersion = Number(one('PRAGMA user_version')?.user_version || 0);
+  if (currentVersion >= DB_SCHEMA_VERSION) return false;
+
   db.run(`
-    PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS app_meta (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -113,6 +119,8 @@ function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_invoices_bill_no ON invoices(bill_no);
     CREATE INDEX IF NOT EXISTS idx_invoices_financial_year ON invoices(financial_year);
   `);
+  db.run(`PRAGMA user_version = ${DB_SCHEMA_VERSION}`);
+  return true;
 }
 
 function select(sql, params = []) {
