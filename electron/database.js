@@ -1,14 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 const initSqlJs = require('sql.js');
-const { app } = require('electron');
 
 let db;
 let dbPath;
 let dataDir;
 
+function getElectronApp() {
+  try {
+    const electron = require('electron');
+    if (!electron || typeof electron === 'string') return null;
+    return electron.app || null;
+  } catch {
+    return null;
+  }
+}
+
 function getBaseDir() {
-  if (app.isPackaged) return path.dirname(process.execPath);
+  const electronApp = getElectronApp();
+  if (electronApp?.isPackaged) return path.dirname(process.execPath);
   return path.join(__dirname, '..');
 }
 
@@ -35,6 +45,10 @@ function saveDatabase() {
 function runMigrations() {
   db.run(`
     PRAGMA foreign_keys = ON;
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS invoices (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       financial_year TEXT NOT NULL,
@@ -109,6 +123,17 @@ function getNextBillInfo(dateString) {
   return { financial_year: fy, serial_no: serial, bill_no: formatBillNo(fy, serial) };
 }
 
+function getMeta(key) {
+  return one('SELECT value FROM app_meta WHERE key = ?', [key])?.value || null;
+}
+
+function setMeta(key, value) {
+  db.run(
+    'INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    [key, String(value)]
+  );
+}
+
 function total(items = []) {
   return items.reduce((sum, item) => {
     const rate = num(item.rate);
@@ -158,17 +183,243 @@ function insertItems(invoiceId, items) {
   }
 }
 
+function insertInvoiceRecord(input, ts = nowIso()) {
+  const bill = getNextBillInfo(input.date);
+  db.run(`INSERT INTO invoices (financial_year, serial_no, bill_no, date, party_name, marka, buyer_name, lr_number, transport_name, grand_total, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [bill.financial_year, bill.serial_no, bill.bill_no, input.date, input.party_name, input.marka, input.buyer_name, input.lr_number, input.transport_name, input.grand_total, ts, ts]);
+  const id = Number(one('SELECT last_insert_rowid() AS id').id);
+  insertItems(id, input.items);
+  return id;
+}
+
+function getDemoSeedPayloads() {
+  return [
+    {
+      date: '2026-04-02',
+      party_name: 'Shree Ram Kitchen House',
+      marka: 'SR-Red',
+      buyer_name: 'Mahesh Traders',
+      lr_number: 'LR240315',
+      transport_name: 'Patel Roadways',
+      items: [
+        { item_name: 'Steel Dinner Plate 12"', rate: 112, entries: [{ entry_type: 'pieces', quantity: 36 }] },
+        { item_name: 'Steel Glass Regular', rate: 28, entries: [{ entry_type: 'pieces', quantity: 72 }] }
+      ]
+    },
+    {
+      date: '2026-04-03',
+      party_name: 'Jay Bhavani Metals',
+      marka: 'JBM-Prime',
+      buyer_name: 'Rudra Distributors',
+      lr_number: 'LR240327',
+      transport_name: 'Shreenath Transport',
+      items: [
+        { item_name: 'Steel Tope No. 4', rate: 168, entries: [{ entry_type: 'pieces', quantity: 24 }] },
+        { item_name: 'Steel Bowl Medium', rate: 34, entries: [{ entry_type: 'pieces', quantity: 96 }] }
+      ]
+    },
+    {
+      date: '2026-04-05',
+      party_name: 'Krishna Steel Center',
+      marka: 'KSC-Gold',
+      buyer_name: 'Hariom Agency',
+      lr_number: 'LR240361',
+      transport_name: 'Vishwakarma Cargo',
+      items: [
+        { item_name: 'Steel Patila 5 Ltr', rate: 388, entries: [{ entry_type: 'pieces', quantity: 14 }] },
+        { item_name: 'Steel Tray Heavy', rate: 198, entries: [{ entry_type: 'pieces', quantity: 18 }] }
+      ]
+    },
+    {
+      date: '2026-04-06',
+      party_name: 'Ganesh Bartan Bhandar',
+      marka: 'GBB-Silver',
+      buyer_name: 'Asha Kitchen Point',
+      lr_number: 'LR240372',
+      transport_name: 'Maruti Freight',
+      items: [
+        { item_name: 'Steel Spoon Set', rate: 9.5, entries: [{ entry_type: 'pieces', quantity: 240 }] },
+        { item_name: 'Steel Serving Spoon', rate: 26, entries: [{ entry_type: 'pieces', quantity: 80 }] }
+      ]
+    },
+    {
+      date: '2026-04-08',
+      party_name: 'Om Enterprises',
+      marka: 'OM-Classic',
+      buyer_name: 'Shivam Retail',
+      lr_number: 'LR240398',
+      transport_name: 'New India Transport',
+      items: [
+        { item_name: 'Steel Bucket 15 Ltr', rate: 486, entries: [{ entry_type: 'pieces', quantity: 10 }] },
+        { item_name: 'Steel Mug', rate: 42, entries: [{ entry_type: 'pieces', quantity: 60 }] }
+      ]
+    },
+    {
+      date: '2026-04-09',
+      party_name: 'Mahavir Stainless',
+      marka: 'MS-Blue',
+      buyer_name: 'Kailash Wholesale',
+      lr_number: 'LR240411',
+      transport_name: 'Narmada Logistics',
+      items: [
+        { item_name: 'Steel Handi 3 Ltr', rate: 214, entries: [{ entry_type: 'pieces', quantity: 28 }] },
+        { item_name: 'Steel Lid Heavy', rate: 38, entries: [{ entry_type: 'pieces', quantity: 70 }] }
+      ]
+    },
+    {
+      date: '2026-04-10',
+      party_name: 'Radhe Trading Company',
+      marka: 'RTC-Metro',
+      buyer_name: 'City Home Needs',
+      lr_number: 'LR240425',
+      transport_name: 'Express Parcel Service',
+      items: [
+        { item_name: 'Steel Lunch Box 3 Tier', rate: 176, entries: [{ entry_type: 'pieces', quantity: 26 }] },
+        { item_name: 'Steel Water Jug', rate: 264, entries: [{ entry_type: 'pieces', quantity: 12 }] }
+      ]
+    },
+    {
+      date: '2026-04-12',
+      party_name: 'Tulsi Utensils Mart',
+      marka: 'TUL-Plus',
+      buyer_name: 'Milan Stores',
+      lr_number: 'LR240447',
+      transport_name: 'Patel Road Carriers',
+      items: [
+        { item_name: 'Steel Plate Deep', rate: 96, entries: [{ entry_type: 'pieces', quantity: 60 }] },
+        { item_name: 'Steel Katori', rate: 18, entries: [{ entry_type: 'pieces', quantity: 180 }] }
+      ]
+    },
+    {
+      date: '2026-04-14',
+      party_name: 'Bansi Metal Works',
+      marka: 'BMW-Trade',
+      buyer_name: 'Navkar Sales',
+      lr_number: 'LR240468',
+      transport_name: 'Ashapura Transport',
+      items: [
+        { item_name: 'Steel Drum 25 Kg', rate: 149, entries: [{ entry_type: 'weight', quantity: 78.5 }] },
+        { item_name: 'Steel Scrap Return', rate: 91, entries: [{ entry_type: 'weight', quantity: 42.25 }] }
+      ]
+    },
+    {
+      date: '2026-04-15',
+      party_name: 'Pooja Kitchenware',
+      marka: 'PK-New',
+      buyer_name: 'Anand Traders',
+      lr_number: 'LR240479',
+      transport_name: 'Saurashtra Cargo Movers',
+      items: [
+        { item_name: 'Steel Casserole Set', rate: 420, entries: [{ entry_type: 'pieces', quantity: 9 }] },
+        { item_name: 'Steel Bowl Set', rate: 122, entries: [{ entry_type: 'pieces', quantity: 24 }] }
+      ]
+    },
+    {
+      date: '2026-04-17',
+      party_name: 'Nitya Houseware',
+      marka: 'NHM-Urban',
+      buyer_name: 'Modern Retail Hub',
+      lr_number: 'LR240502',
+      transport_name: 'Fast Track Roadlines',
+      items: [
+        { item_name: 'Steel Fry Pan', rate: 308, entries: [{ entry_type: 'pieces', quantity: 16 }] },
+        { item_name: 'Steel Tadka Pan', rate: 144, entries: [{ entry_type: 'pieces', quantity: 22 }] }
+      ]
+    },
+    {
+      date: '2026-04-18',
+      party_name: 'Laxmi Bartan Depot',
+      marka: 'LBD-Royal',
+      buyer_name: 'Bhakti Sales',
+      lr_number: 'LR240516',
+      transport_name: 'Secure Parcel Line',
+      items: [
+        { item_name: 'Steel Tea Strainer', rate: 22, entries: [{ entry_type: 'pieces', quantity: 150 }] },
+        { item_name: 'Steel Masala Box', rate: 198, entries: [{ entry_type: 'pieces', quantity: 14 }] }
+      ]
+    },
+    {
+      date: '2026-04-20',
+      party_name: 'Universal Steel Traders',
+      marka: 'UST-Max',
+      buyer_name: 'Royal Department Store',
+      lr_number: 'LR240539',
+      transport_name: 'National Surface',
+      items: [
+        { item_name: 'Steel Container 10 Kg', rate: 312, entries: [{ entry_type: 'pieces', quantity: 20 }] },
+        { item_name: 'Steel Container 5 Kg', rate: 218, entries: [{ entry_type: 'pieces', quantity: 24 }] }
+      ]
+    },
+    {
+      date: '2026-04-21',
+      party_name: 'Heena Kitchen Store',
+      marka: 'HKS-Select',
+      buyer_name: 'Arihant Super Store',
+      lr_number: 'LR240548',
+      transport_name: 'Shiv Shakti Roadways',
+      items: [
+        { item_name: 'Steel Lemon Set', rate: 86, entries: [{ entry_type: 'pieces', quantity: 40 }] },
+        { item_name: 'Steel Salt Pepper Set', rate: 74, entries: [{ entry_type: 'pieces', quantity: 36 }] }
+      ]
+    },
+    {
+      date: '2026-04-23',
+      party_name: 'Rajasthan Bartan House',
+      marka: 'RBH-Store',
+      buyer_name: 'Mateshwari Trading',
+      lr_number: 'LR240572',
+      transport_name: 'Golden Goods Carrier',
+      items: [
+        { item_name: 'Steel Rice Pot', rate: 356, entries: [{ entry_type: 'pieces', quantity: 11 }] },
+        { item_name: 'Steel Serving Bowl', rate: 126, entries: [{ entry_type: 'pieces', quantity: 30 }] }
+      ]
+    },
+    {
+      date: '2026-04-24',
+      party_name: 'Paras Industries',
+      marka: 'PI-Bulk',
+      buyer_name: 'Shreeji Home Collection',
+      lr_number: 'LR240587',
+      transport_name: 'Western Freight Movers',
+      items: [
+        { item_name: 'Steel Disc Raw', rate: 154, entries: [{ entry_type: 'weight', quantity: 92.75 }] },
+        { item_name: 'Steel Rim Cut', rate: 132, entries: [{ entry_type: 'weight', quantity: 38.5 }] }
+      ]
+    },
+    {
+      date: '2026-04-25',
+      party_name: 'Akshar Utensils',
+      marka: 'AKU-Daily',
+      buyer_name: 'Pavan Mart',
+      lr_number: 'LR240601',
+      transport_name: 'Reliable Carriers',
+      items: [
+        { item_name: 'Steel Tiffin 4 Tier', rate: 224, entries: [{ entry_type: 'pieces', quantity: 18 }] },
+        { item_name: 'Steel Glass Hammered', rate: 44, entries: [{ entry_type: 'pieces', quantity: 54 }] }
+      ]
+    },
+    {
+      date: '2026-04-26',
+      party_name: 'Shiv Stainless Supply',
+      marka: 'SSS-Prime',
+      buyer_name: 'Deepak Sales Agency',
+      lr_number: 'LR240618',
+      transport_name: 'Om Logistics',
+      items: [
+        { item_name: 'Steel Patila 10 Ltr', rate: 598, entries: [{ entry_type: 'pieces', quantity: 8 }] },
+        { item_name: 'Steel Bucket Heavy', rate: 520, entries: [{ entry_type: 'pieces', quantity: 7 }] }
+      ]
+    }
+  ];
+}
+
 function createInvoice(payload) {
   const input = normalize(payload);
-  const bill = getNextBillInfo(input.date);
   const ts = nowIso();
   db.run('BEGIN TRANSACTION');
   try {
-    db.run(`INSERT INTO invoices (financial_year, serial_no, bill_no, date, party_name, marka, buyer_name, lr_number, transport_name, grand_total, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [bill.financial_year, bill.serial_no, bill.bill_no, input.date, input.party_name, input.marka, input.buyer_name, input.lr_number, input.transport_name, input.grand_total, ts, ts]);
-    const id = Number(one('SELECT last_insert_rowid() AS id').id);
-    insertItems(id, input.items);
+    const id = insertInvoiceRecord(input, ts);
     db.run('COMMIT');
     saveDatabase();
     return getInvoice(id);
@@ -220,6 +471,30 @@ function deleteInvoice(id) {
   return { success: true };
 }
 
-function getAppInfo() { return { dbPath, dataDir, isPackaged: app.isPackaged }; }
+function getAppInfo() {
+  return { dbPath, dataDir, isPackaged: Boolean(getElectronApp()?.isPackaged) };
+}
 
-module.exports = { initDatabase, listInvoices, getInvoice, createInvoice, updateInvoice, deleteInvoice, getNextBillInfo, getAppInfo };
+function seedDemoData() {
+  const seedKey = 'demo_seed_v1';
+  if (getMeta(seedKey)) return { seeded: false, inserted: 0, reason: 'already-seeded' };
+
+  const payloads = getDemoSeedPayloads();
+  const ts = nowIso();
+
+  db.run('BEGIN TRANSACTION');
+  try {
+    for (const payload of payloads) {
+      insertInvoiceRecord(normalize(payload), ts);
+    }
+    setMeta(seedKey, ts);
+    db.run('COMMIT');
+    saveDatabase();
+    return { seeded: true, inserted: payloads.length, reason: 'ok' };
+  } catch (e) {
+    db.run('ROLLBACK');
+    throw e;
+  }
+}
+
+module.exports = { initDatabase, listInvoices, getInvoice, createInvoice, updateInvoice, deleteInvoice, getNextBillInfo, getAppInfo, seedDemoData };

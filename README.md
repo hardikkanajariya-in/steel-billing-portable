@@ -25,6 +25,16 @@ pnpm install
 pnpm dev
 ```
 
+## Seed demo data
+
+To load realistic sample dispatch records into the local database once:
+
+```bash
+pnpm seed:demo
+```
+
+The seed is idempotent. Running it again will skip if the demo records were already inserted.
+
 ## Build portable Windows app
 
 On a Windows machine:
