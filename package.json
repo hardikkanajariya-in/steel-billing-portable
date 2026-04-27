@@ -6,10 +6,9 @@
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "ensure:electron": "node scripts/ensure-electron.mjs",
-    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"pnpm run ensure:electron && wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .\"",
     "build": "vite build",
-    "start": "pnpm run ensure:electron && electron .",
+    "start": "electron .",
     "dist": "pnpm build && electron-builder --win portable",
     "dist:dir": "pnpm build && electron-builder --dir"
   },
@@ -18,14 +17,12 @@
     "sql.js": "latest"
   },
   "devDependencies": {
-    "autoprefixer": "latest",
+    "@tailwindcss/vite": "latest",
     "concurrently": "latest",
     "cross-env": "latest",
     "electron": "latest",
     "electron-builder": "latest",
     "lucide-react": "latest",
-    "@tailwindcss/postcss": "latest",
-    "postcss": "latest",
     "react": "latest",
     "react-dom": "latest",
     "tailwindcss": "latest",
@@ -43,5 +40,8 @@
       "target": [{ "target": "portable", "arch": ["x64"] }],
       "artifactName": "SteelBillingPortable-${version}.${ext}"
     }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["electron", "electron-winstaller"]
   }
 }

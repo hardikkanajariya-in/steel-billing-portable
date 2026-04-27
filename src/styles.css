@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
+}
 
 @layer components {
   .label { @apply mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500; }
