@@ -429,6 +429,8 @@ function DetailsScreen({ id, onEdit, onBack }) {
   const [invoice, setInvoice] = useState(null);
   const [pdfPreview, setPdfPreview] = useState({ url: '', fileName: '' });
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [printLoading, setPrintLoading] = useState(false);
   useEffect(() => { api.getInvoice(id).then(setInvoice); }, [id]);
   useEffect(() => () => { if (pdfPreview.url) URL.revokeObjectURL(pdfPreview.url); }, [pdfPreview.url]);
   if (!invoice) return <div className="rounded-3xl bg-white p-8">Loading...</div>;
@@ -457,19 +459,45 @@ function DetailsScreen({ id, onEdit, onBack }) {
     }
   };
 
+  const exportPdf = async () => {
+    setExportLoading(true);
+    try {
+      const result = await api.exportInvoicePdf(invoice);
+      if (!result?.canceled && result?.filePath) {
+        alert(`PDF exported successfully.\n\n${result.filePath}`);
+      }
+    } catch (error) {
+      alert(`Could not export PDF.\n\n${error?.message || error}`);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const printInvoice = async () => {
+    setPrintLoading(true);
+    try {
+      const result = await api.printInvoice(invoice);
+      if (result?.canceled) return;
+    } catch (error) {
+      alert(`Could not print dispatch slip.\n\n${error?.message || error}`);
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       <div className="tally-panel no-print flex items-center justify-between p-5">
-        <div><p className="tally-caption">Dispatch Preview</p><h2 className="text-xl font-black text-blue-950">Dispatch {invoice.bill_no}</h2><p className="text-sm text-slate-600">Review the dispatch slip, generate a PDF, then print from the preview.</p></div>
-        <div className="flex gap-3"><Button variant="secondary" onClick={onEdit}><Edit size={16} /> Edit</Button><Button onClick={openPdfPreview} disabled={pdfLoading}><Printer size={16} /> {pdfLoading ? 'Generating PDF...' : 'Preview PDF'}</Button><Button variant="secondary" onClick={onBack}>Back</Button></div>
+        <div><p className="tally-caption">Dispatch Preview</p><h2 className="text-xl font-black text-blue-950">Dispatch {invoice.bill_no}</h2><p className="text-sm text-slate-600">Review the dispatch slip, open the print preview, or use the Windows system print dialog if needed.</p></div>
+        <div className="flex gap-3"><Button variant="secondary" onClick={onEdit}><Edit size={16} /> Edit</Button><Button onClick={openPdfPreview} disabled={pdfLoading}><Printer size={16} /> {pdfLoading ? 'Generating PDF...' : 'Print'}</Button><Button variant="secondary" onClick={printInvoice} disabled={printLoading}>{printLoading ? 'Opening...' : 'System Print'}</Button><Button variant="secondary" onClick={exportPdf} disabled={exportLoading}>{exportLoading ? 'Exporting...' : 'Export PDF'}</Button><Button variant="secondary" onClick={onBack}>Back</Button></div>
       </div>
       <InvoicePrint invoice={invoice} />
-      {pdfPreview.url && <PdfPreviewModal preview={pdfPreview} onClose={closePdfPreview} onRegenerate={openPdfPreview} loading={pdfLoading} />}
+      {pdfPreview.url && <PdfPreviewModal preview={pdfPreview} onClose={closePdfPreview} onRegenerate={openPdfPreview} onExport={exportPdf} onSystemPrint={printInvoice} loading={pdfLoading} exportLoading={exportLoading} printLoading={printLoading} />}
     </div>
   );
 }
 
-function PdfPreviewModal({ preview, onClose, onRegenerate, loading }) {
+function PdfPreviewModal({ preview, onClose, onRegenerate, onExport, onSystemPrint, loading, exportLoading, printLoading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
       <div className="flex h-[calc(100vh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.32)]">
@@ -477,17 +505,12 @@ function PdfPreviewModal({ preview, onClose, onRegenerate, loading }) {
           <div>
             <p className="tally-caption">PDF Preview</p>
             <h3 className="text-lg font-black text-blue-950">{preview.fileName}</h3>
-            <p className="text-sm text-slate-600">Use the PDF viewer toolbar to print or save the generated slip.</p>
+            <p className="text-sm text-slate-600">Use the PDF viewer toolbar to print from preview, or open the Windows system print dialog separately.</p>
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={onRegenerate} disabled={loading}>{loading ? 'Refreshing...' : 'Regenerate PDF'}</Button>
-            <a
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-950 transition hover:bg-blue-50"
-              href={preview.url}
-              download={preview.fileName}
-            >
-              Download PDF
-            </a>
+            <Button variant="secondary" onClick={onSystemPrint} disabled={printLoading}>{printLoading ? 'Opening...' : 'System Print'}</Button>
+            <Button variant="secondary" onClick={onExport} disabled={exportLoading}>{exportLoading ? 'Exporting...' : 'Export PDF'}</Button>
             <Button variant="secondary" onClick={onClose}><X size={16} /> Close</Button>
           </div>
         </div>

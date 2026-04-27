@@ -1,5 +1,6 @@
 const path = require('path');
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const fs = require('fs/promises');
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
 const db = require('./database');
 const { buildInvoicePdfHtml } = require('./print-template');
 
@@ -107,6 +108,8 @@ function registerIpc() {
   ipcMain.handle('invoices:delete', (_e, id) => db.deleteInvoice(id));
   ipcMain.handle('invoices:next-bill-no', (_e, date) => db.getNextBillInfo(date));
   ipcMain.handle('invoices:generate-pdf', (_e, invoice) => generateInvoicePdf(invoice));
+  ipcMain.handle('invoices:export-pdf', (_e, invoice) => exportInvoicePdf(invoice));
+  ipcMain.handle('invoices:print', (_e, invoice) => printInvoice(invoice));
   ipcMain.handle('app:info', () => db.getAppInfo());
   ipcRegistered = true;
 }
@@ -119,20 +122,10 @@ function sanitizeFileName(value) {
 }
 
 async function generateInvoicePdf(invoice) {
-  const pdfWindow = new BrowserWindow({
-    show: false,
-    autoHideMenuBar: true,
-    backgroundColor: '#ffffff'
-  });
+  const pdfWindow = createPrintWindow();
 
   try {
-    const html = buildInvoicePdfHtml(invoice, APP_NAME);
-    await pdfWindow.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`);
-    await pdfWindow.webContents.executeJavaScript(
-      'document.fonts ? document.fonts.ready.then(() => true) : true',
-      true
-    ).catch(() => true);
-
+    await loadInvoiceIntoPrintWindow(pdfWindow, invoice);
     const pdfBuffer = await pdfWindow.webContents.printToPDF({
       printBackground: true,
       preferCSSPageSize: true,
@@ -145,6 +138,69 @@ async function generateInvoicePdf(invoice) {
     };
   } finally {
     if (!pdfWindow.isDestroyed()) pdfWindow.destroy();
+  }
+}
+
+function createPrintWindow() {
+  return new BrowserWindow({
+    show: false,
+    autoHideMenuBar: true,
+    backgroundColor: '#ffffff'
+  });
+}
+
+async function loadInvoiceIntoPrintWindow(win, invoice) {
+  const html = buildInvoicePdfHtml(invoice, APP_NAME);
+  await win.loadURL(`data:text/html;charset=UTF-8,${encodeURIComponent(html)}`);
+  await win.webContents.executeJavaScript(
+    'document.fonts ? document.fonts.ready.then(() => true) : true',
+    true
+  ).catch(() => true);
+}
+
+async function exportInvoicePdf(invoice) {
+  const { base64, fileName } = await generateInvoicePdf(invoice);
+  const defaultPath = path.join(app.getPath('documents'), fileName);
+  const result = await dialog.showSaveDialog({
+    title: 'Export Dispatch PDF',
+    defaultPath,
+    filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
+  await fs.writeFile(result.filePath, Buffer.from(base64, 'base64'));
+  return { canceled: false, filePath: result.filePath };
+}
+
+async function printInvoice(invoice) {
+  const printWindow = createPrintWindow();
+
+  try {
+    await loadInvoiceIntoPrintWindow(printWindow, invoice);
+    return await new Promise((resolve, reject) => {
+      printWindow.webContents.print(
+        {
+          silent: false,
+          printBackground: true
+        },
+        (success, failureReason) => {
+          if (!success && failureReason === 'Print job canceled') {
+            resolve({ success: false, canceled: true });
+            return;
+          }
+          if (!success && failureReason) {
+            reject(new Error(failureReason));
+            return;
+          }
+          resolve({ success, canceled: false });
+        }
+      );
+    });
+  } finally {
+    if (!printWindow.isDestroyed()) printWindow.destroy();
   }
 }
 
