@@ -407,8 +407,10 @@ function InvoicePrint({ invoice }) {
         {/* <th className="print-th text-right">Total</th> */}
         </tr>
         </thead>
-        <tbody>{invoice.items.map(item => item.entries.map((entry, idx) => <tr key={`${item.id}-${entry.id}`}><td className="print-td">{idx === 0 ? item.item_name : ''}</td><td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td><td className="print-td">₹ {money(item.rate)}</td>
-        {/* <td className="print-td text-right">₹ {money(entry.amount)}</td> */}
+        <tbody>{invoice.items.flatMap(item => item.entries.map((entry, idx) => <tr key={`${item.id}-${entry.id}`}>
+          {idx === 0 && <td className="print-td align-middle text-center font-semibold" rowSpan={item.entries.length}>{item.item_name}</td>}
+          <td className="print-td">{qty(entry.quantity)} {entry.entry_type === 'pieces' ? 'Pcs' : 'Kg'}</td><td className="print-td">₹ {money(item.rate)}</td>
+          {/* <td className="print-td text-right">₹ {money(entry.amount)}</td> */}
         </tr>))}
         </tbody>
         {/* <tfoot><tr><td className="print-total" colSpan="3">Grand Total</td><td className="print-total text-right">₹ {money(invoice.grand_total)}</td></tr></tfoot> */}
