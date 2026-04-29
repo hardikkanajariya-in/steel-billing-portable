@@ -37,6 +37,25 @@ function infoRow(label, value) {
   return `<div class="info-row"><span class="info-label">${escapeHtml(label)}: </span><span>${escapeHtml(value || '-')}</span></div>`;
 }
 
+function buildItemRows(items) {
+  if (items.length <= 1) {
+    return {
+      singleItem: items[0] || null,
+      itemRows: []
+    };
+  }
+
+  const itemRows = [];
+  for (let index = 0; index < items.length; index += 2) {
+    itemRows.push(items.slice(index, index + 2));
+  }
+
+  return {
+    singleItem: null,
+    itemRows
+  };
+}
+
 function itemTable(item, index) {
   const entries = Array.isArray(item?.entries) ? item.entries : [];
   const itemUnit = normalizeEntryType(item?.entry_type || entries[0]?.entry_type) === 'pieces' ? 'Pcs' : 'Kg';
@@ -65,6 +84,7 @@ function itemTable(item, index) {
 
 function buildInvoicePdfHtml(invoice, appName) {
   const items = Array.isArray(invoice?.items) ? invoice.items : [];
+  const { singleItem, itemRows } = buildItemRows(items);
 
   return `<!doctype html>
   <html lang="en">
@@ -94,9 +114,9 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         .print-page {
-          width: 105mm;
-          min-height: 148mm;
-          padding: 6mm;
+          width: 210mm;
+          min-height: 297mm;
+          padding: 10mm 12mm;
         }
 
         .title-block {
@@ -138,15 +158,41 @@ function buildInvoicePdfHtml(invoice, appName) {
           margin-top: 6mm;
         }
 
-        .item-table {
-          width: 100%;
-          margin-top: 4mm;
-          border-collapse: collapse;
-          font-size: 13px;
+        .items-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 4mm;
         }
 
-        .item-table:first-child {
-          margin-top: 0;
+        .items-single {
+          display: flex;
+          justify-content: center;
+        }
+
+        .items-grid-two {
+          display: grid;
+          align-items: start;
+          gap: 4mm;
+        }
+
+        .items-grid-two {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .item-card--single {
+          width: min(96mm, 100%);
+        }
+
+        .item-card {
+          min-width: 0;
+        }
+
+        .item-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+          break-inside: avoid;
+          page-break-inside: avoid;
         }
 
         .print-th {
@@ -175,7 +221,7 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         @page {
-          size: 105mm 148mm;
+          size: A4 portrait;
           margin: 0;
         }
       </style>
@@ -195,7 +241,12 @@ function buildInvoicePdfHtml(invoice, appName) {
           ${infoRow('Transport', invoice?.transport_name)}
         </div>
         <div class="items-shell">
-          ${items.map((item, index) => itemTable(item, index)).join('')}
+          <div class="items-layout">
+            ${singleItem ? `<div class="items-single"><div class="item-card item-card--single">${itemTable(singleItem, 0)}</div></div>` : ''}
+            ${itemRows.map((rowItems, rowIndex) => (
+              `<div class="items-grid-two">${rowItems.map((item, itemIndex) => `<div class="item-card">${itemTable(item, rowIndex * 2 + itemIndex)}</div>`).join('')}</div>`
+            )).join('')}
+          </div>
         </div>
       </section>
     </body>
