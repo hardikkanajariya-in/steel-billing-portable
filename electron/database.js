@@ -213,6 +213,8 @@ function normalize(payload) {
     };
   }).filter((item) => item.item_name || item.entries.length);
 
+  const transportChargeSign = String(payload.transport_charge_sign || '+') === '-' ? -1 : 1;
+
   return {
     date: payload.date || new Date().toISOString().slice(0, 10),
     party_name: String(payload.party_name || '').trim(),
@@ -220,7 +222,7 @@ function normalize(payload) {
     buyer_name: String(payload.buyer_name || '').trim(),
     lr_number: String(payload.lr_number || '').trim(),
     transport_name: String(payload.transport_name || '').trim(),
-    transport_charge: num(payload.transport_charge),
+    transport_charge: num(payload.transport_charge) * transportChargeSign,
     items,
     grand_total: total(items)
   };
