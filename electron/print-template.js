@@ -33,6 +33,13 @@ function rateValue(value) {
   });
 }
 
+function money(value) {
+  return Number(value || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function infoRow(label, value) {
   return `<div class="info-row"><span class="info-label">${escapeHtml(label)}: </span><span>${escapeHtml(value || '-')}</span></div>`;
 }
@@ -239,6 +246,7 @@ function buildInvoicePdfHtml(invoice, appName) {
           ${infoRow('Marka', invoice?.marka)}
           ${infoRow('LR Number', invoice?.lr_number)}
           ${infoRow('Transport', invoice?.transport_name)}
+          ${infoRow('Tempo/ Transport charge', `₹ ${money(invoice?.transport_charge)}`)}
         </div>
         <div class="items-shell">
           <div class="items-layout">

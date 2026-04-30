@@ -6,7 +6,7 @@ let db;
 let dbPath;
 let dataDir;
 let dataLocation;
-const DB_SCHEMA_VERSION = 1;
+const DB_SCHEMA_VERSION = 2;
 
 function getElectronApp() {
   try {
@@ -78,47 +78,58 @@ function runMigrations() {
   const currentVersion = Number(one('PRAGMA user_version')?.user_version || 0);
   if (currentVersion >= DB_SCHEMA_VERSION) return false;
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS app_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS invoices (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      financial_year TEXT NOT NULL,
-      serial_no INTEGER NOT NULL,
-      bill_no TEXT NOT NULL UNIQUE,
-      date TEXT NOT NULL,
-      party_name TEXT NOT NULL DEFAULT '',
-      marka TEXT NOT NULL DEFAULT '',
-      buyer_name TEXT NOT NULL DEFAULT '',
-      lr_number TEXT NOT NULL DEFAULT '',
-      transport_name TEXT NOT NULL DEFAULT '',
-      grand_total REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS invoice_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      invoice_id INTEGER NOT NULL,
-      item_name TEXT NOT NULL DEFAULT '',
-      rate REAL NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      FOREIGN KEY(invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS invoice_item_entries (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      invoice_item_id INTEGER NOT NULL,
-      entry_type TEXT NOT NULL CHECK(entry_type IN ('weight', 'pieces')),
-      quantity REAL NOT NULL DEFAULT 0,
-      amount REAL NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      FOREIGN KEY(invoice_item_id) REFERENCES invoice_items(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
-    CREATE INDEX IF NOT EXISTS idx_invoices_bill_no ON invoices(bill_no);
-    CREATE INDEX IF NOT EXISTS idx_invoices_financial_year ON invoices(financial_year);
-  `);
+  if (currentVersion < 1) {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS invoices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        financial_year TEXT NOT NULL,
+        serial_no INTEGER NOT NULL,
+        bill_no TEXT NOT NULL UNIQUE,
+        date TEXT NOT NULL,
+        party_name TEXT NOT NULL DEFAULT '',
+        marka TEXT NOT NULL DEFAULT '',
+        buyer_name TEXT NOT NULL DEFAULT '',
+        lr_number TEXT NOT NULL DEFAULT '',
+        transport_name TEXT NOT NULL DEFAULT '',
+        transport_charge REAL NOT NULL DEFAULT 0,
+        grand_total REAL NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS invoice_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_id INTEGER NOT NULL,
+        item_name TEXT NOT NULL DEFAULT '',
+        rate REAL NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY(invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS invoice_item_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_item_id INTEGER NOT NULL,
+        entry_type TEXT NOT NULL CHECK(entry_type IN ('weight', 'pieces')),
+        quantity REAL NOT NULL DEFAULT 0,
+        amount REAL NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY(invoice_item_id) REFERENCES invoice_items(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
+      CREATE INDEX IF NOT EXISTS idx_invoices_bill_no ON invoices(bill_no);
+      CREATE INDEX IF NOT EXISTS idx_invoices_financial_year ON invoices(financial_year);
+    `);
+  }
+
+  if (currentVersion < 2) {
+    const hasTransportCharge = select(`PRAGMA table_info('invoices')`).some((column) => column.name === 'transport_charge');
+    if (!hasTransportCharge) {
+      db.run(`ALTER TABLE invoices ADD COLUMN transport_charge REAL NOT NULL DEFAULT 0`);
+    }
+  }
+
   db.run(`PRAGMA user_version = ${DB_SCHEMA_VERSION}`);
   return true;
 }
@@ -209,6 +220,7 @@ function normalize(payload) {
     buyer_name: String(payload.buyer_name || '').trim(),
     lr_number: String(payload.lr_number || '').trim(),
     transport_name: String(payload.transport_name || '').trim(),
+    transport_charge: num(payload.transport_charge),
     items,
     grand_total: total(items)
   };
@@ -226,9 +238,9 @@ function insertItems(invoiceId, items) {
 
 function insertInvoiceRecord(input, ts = nowIso()) {
   const bill = getNextBillInfo(input.date);
-  db.run(`INSERT INTO invoices (financial_year, serial_no, bill_no, date, party_name, marka, buyer_name, lr_number, transport_name, grand_total, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [bill.financial_year, bill.serial_no, bill.bill_no, input.date, input.party_name, input.marka, input.buyer_name, input.lr_number, input.transport_name, input.grand_total, ts, ts]);
+  db.run(`INSERT INTO invoices (financial_year, serial_no, bill_no, date, party_name, marka, buyer_name, lr_number, transport_name, transport_charge, grand_total, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [bill.financial_year, bill.serial_no, bill.bill_no, input.date, input.party_name, input.marka, input.buyer_name, input.lr_number, input.transport_name, input.transport_charge, input.grand_total, ts, ts]);
   const id = Number(one('SELECT last_insert_rowid() AS id').id);
   insertItems(id, input.items);
   return id;
@@ -473,8 +485,8 @@ function updateInvoice(id, payload) {
   const input = normalize(payload);
   db.run('BEGIN TRANSACTION');
   try {
-    db.run(`UPDATE invoices SET date=?, party_name=?, marka=?, buyer_name=?, lr_number=?, transport_name=?, grand_total=?, updated_at=? WHERE id=?`,
-      [input.date, input.party_name, input.marka, input.buyer_name, input.lr_number, input.transport_name, input.grand_total, nowIso(), invoiceId]);
+    db.run(`UPDATE invoices SET date=?, party_name=?, marka=?, buyer_name=?, lr_number=?, transport_name=?, transport_charge=?, grand_total=?, updated_at=? WHERE id=?`,
+      [input.date, input.party_name, input.marka, input.buyer_name, input.lr_number, input.transport_name, input.transport_charge, input.grand_total, nowIso(), invoiceId]);
     db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
     insertItems(invoiceId, input.items);
     db.run('COMMIT');

@@ -13,6 +13,7 @@ function qty(n) { return Number(n || 0).toLocaleString('en-IN', { maximumFractio
 function slipQtyValue(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 4 }); }
 function qtyValue(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
 function rateValue(n) { return Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
+function chargeInputValue(value) { return value === '' || value == null ? '' : String(value); }
 function normalizeEntryType(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return normalized === 'pieces' || normalized === 'piece' || normalized === 'pcs' ? 'pieces' : 'weight';
@@ -36,7 +37,7 @@ function buildItemRows(items) {
   };
 }
 function emptyItem() { return { item_name: '', entry_type: 'weight', rate: '', entries: [{ entry_type: 'weight', quantity: '' }] }; }
-function blankForm() { return { date: today(), party_name: '', marka: '', buyer_name: '', lr_number: '', transport_name: '', items: [emptyItem()] }; }
+function blankForm() { return { date: today(), party_name: '', marka: '', buyer_name: '', lr_number: '', transport_name: '', transport_charge: '', items: [emptyItem()] }; }
 function toForm(invoice) {
   return {
     date: invoice.date,
@@ -45,6 +46,7 @@ function toForm(invoice) {
     buyer_name: invoice.buyer_name || '',
     lr_number: invoice.lr_number || '',
     transport_name: invoice.transport_name || '',
+    transport_charge: chargeInputValue(invoice.transport_charge),
     items: invoice.items?.length ? invoice.items.map(item => ({
       item_name: item.item_name || '',
       entry_type: normalizeEntryType(item.entry_type || item.entries?.[0]?.entry_type),
@@ -378,6 +380,7 @@ function FormScreen({ id, onSaved, onCancel }) {
           {/* <Field label="Buyer Name"><input className="input" value={form.buyer_name} onChange={e => update('buyer_name', e.target.value)} placeholder="Buyer name" /></Field> */}
           <Field label="LR Number"><input className="input" value={form.lr_number} onChange={e => update('lr_number', e.target.value)} placeholder="LR number" /></Field>
           <Field label="Transport Name"><input className="input" value={form.transport_name} onChange={e => update('transport_name', e.target.value)} placeholder="Transport name" /></Field>
+          <Field label="Transport Charge"><input className="input" type="number" min="0" step="0.01" value={form.transport_charge} onChange={e => update('transport_charge', e.target.value)} placeholder="0.00" /></Field>
         </div>
 
         <div className="mt-8 space-y-5">
@@ -428,6 +431,7 @@ function FormScreen({ id, onSaved, onCancel }) {
           <MetaRow label="Dispatch No" value={nextBill?.bill_no} />
           <MetaRow label="Date" value={form.date} />
           <MetaRow label="Party" value={form.party_name || '-'} />
+          <MetaRow label="Transport Charge" value={`₹ ${money(form.transport_charge)}`} />
           {/* <MetaRow label="Entries" value={String(form.items.reduce((sum, item) => sum + item.entries.length, 0))} /> */}
         </div>
         <div className="my-5 border-t border-blue-200"></div>
@@ -538,6 +542,7 @@ function InvoicePrint({ invoice }) {
         <Info label="Dispatch No" value={invoice.bill_no} /><Info label="Date" value={invoice.date} /><Info label="Party Name" value={invoice.party_name} /><Info label="Marka" value={invoice.marka} />
         {/* <Info label="Buyer Name" value={invoice.buyer_name} /> */}
         <Info label="LR Number" value={invoice.lr_number} /><Info label="Transport" value={invoice.transport_name} />
+        <Info label="Tempo/ Transport charge" value={`₹ ${money(invoice.transport_charge)}`} />
       </div>
       <div className="mt-6 flex flex-col gap-4">
         {singleItem ? (
