@@ -1,6 +1,6 @@
 {
   "name": "steel-billing-portable",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Portable offline Windows app for steel utensils dispatch entries and slips.",
   "main": "electron/main.js",
   "private": true,
