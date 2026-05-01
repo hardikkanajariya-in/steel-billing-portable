@@ -70,9 +70,9 @@ Avoid placing it inside `C:\Program Files\` because Windows may block data write
 
 ## Print size
 
-The print template is currently set to A4 portrait. If your actual paper size is different, update this in `src/styles.css` and `electron/print-template.js`:
+The print template is currently set to a custom `15cm x 21cm` portrait sheet. If your actual paper size is different, update this in `src/styles.css` and `electron/print-template.js`:
 
 ```css
-@page { size: A4 portrait; margin: 0; }
-.print-page { width: 210mm; min-height: 297mm; }
+@page { size: 150mm 210mm; margin: 0; }
+.print-page { width: 150mm; min-height: 210mm; }
 ```

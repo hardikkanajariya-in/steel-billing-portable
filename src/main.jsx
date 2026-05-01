@@ -553,23 +553,23 @@ function InvoicePrint({ invoice }) {
 
   return (
     <section className="print-page mx-auto bg-white p-8 shadow-sm print:shadow-none">
-      <div className="mb-5 text-center"><h1 className="text-2xl font-black uppercase tracking-wide">Dispatch Slip</h1><p className="text-sm text-slate-500">{APP_NAME}</p></div>
-      <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+      <div className="mb-4 text-center"><h1 className="text-xl font-black uppercase tracking-wide">Dispatch Slip</h1><p className="text-xs text-slate-500">{APP_NAME}</p></div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
         <Info label="Dispatch No" value={invoice.bill_no} /><Info label="Date" value={invoice.date} /><Info label="Party Name" value={invoice.party_name} /><Info label="Marka" value={invoice.marka} />
         {/* <Info label="Buyer Name" value={invoice.buyer_name} /> */}
         <Info label="LR Number" value={invoice.lr_number} /><Info label="Transport" value={invoice.transport_name} />
         <Info label="Tempo/ Transport charge" value={formatSignedMoney(invoice.transport_charge)} />
       </div>
-      <div className="mt-6 flex flex-col gap-4">
+      <div className="mt-4 flex flex-col gap-3">
         {singleItem ? (
           <div className="flex justify-center">
-            <div className="w-full max-w-[96mm]">
+            <div className="w-full max-w-[68mm]">
               <ItemTable item={singleItem} />
             </div>
           </div>
         ) : null}
         {itemRows.map((rowItems, index) => (
-          <div key={`item-row-${index}`} className="grid grid-cols-2 gap-4">
+          <div key={`item-row-${index}`} className="grid grid-cols-2 gap-3">
             {rowItems.map((item) => (
               <ItemTable key={item.id} item={item} />
             ))}
@@ -587,7 +587,7 @@ function ItemTable({ item }) {
   const itemTotalQuantity = entries.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0);
 
   return (
-    <table className="w-full border-collapse text-sm [break-inside:avoid]">
+    <table className="w-full border-collapse text-[12px] [break-inside:avoid]">
       <thead>
         <tr>
           <th className="print-th text-center">{item.item_name}</th>
@@ -607,6 +607,6 @@ function ItemTable({ item }) {
   );
 }
 
-function Info({ label, value }) { return <div className="border-b border-slate-200 py-1"><span className="font-bold">{label}: </span><span>{value || '-'}</span></div>; }
+function Info({ label, value }) { return <div className="border-b border-slate-200 py-0.5"><span className="font-bold">{label}: </span><span>{value || '-'}</span></div>; }
 
 createRoot(document.getElementById('root')).render(<App />);

@@ -111,21 +111,21 @@ body {
 }
 
 .print-page {
-  width: 210mm;
-  min-height: 297mm;
+  width: 150mm;
+  min-height: 210mm;
   max-width: calc(100vw - 2rem);
   box-sizing: border-box;
-  padding: 10mm 12mm !important;
+  padding: 7mm 8mm !important;
 }
 
 @media print {
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: 150mm 210mm; margin: 0; }
   body { background: white !important; }
   .no-print, header { display: none !important; }
   main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
   .print-page {
-    width: 210mm !important;
-    min-height: 297mm !important;
+    width: 150mm !important;
+    min-height: 210mm !important;
     max-width: none !important;
     margin: 0 !important;
     box-shadow: none !important;

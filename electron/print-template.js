@@ -127,40 +127,40 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         .print-page {
-          width: 210mm;
-          min-height: 297mm;
-          padding: 10mm 12mm;
+          width: 150mm;
+          min-height: 210mm;
+          padding: 7mm 8mm;
         }
 
         .title-block {
-          margin-bottom: 5mm;
+          margin-bottom: 4mm;
           text-align: center;
         }
 
         .title-block h1 {
           margin: 0;
-          font-size: 24px;
+          font-size: 20px;
           font-weight: 900;
           letter-spacing: 0.08em;
           text-transform: uppercase;
         }
 
         .title-block p {
-          margin: 6px 0 0;
-          font-size: 13px;
+          margin: 4px 0 0;
+          font-size: 12px;
           color: #64748b;
         }
 
         .info-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px 18px;
-          font-size: 13px;
+          gap: 6px 12px;
+          font-size: 12px;
         }
 
         .info-row {
           border-bottom: 1px solid #e2e8f0;
-          padding: 4px 0;
+          padding: 2px 0;
         }
 
         .info-label {
@@ -168,13 +168,13 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         .items-shell {
-          margin-top: 6mm;
+          margin-top: 4mm;
         }
 
         .items-layout {
           display: flex;
           flex-direction: column;
-          gap: 4mm;
+          gap: 3mm;
         }
 
         .items-single {
@@ -185,7 +185,7 @@ function buildInvoicePdfHtml(invoice, appName) {
         .items-grid-two {
           display: grid;
           align-items: start;
-          gap: 4mm;
+          gap: 3mm;
         }
 
         .items-grid-two {
@@ -193,7 +193,7 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         .item-card--single {
-          width: min(96mm, 100%);
+          width: min(68mm, 100%);
         }
 
         .item-card {
@@ -203,7 +203,7 @@ function buildInvoicePdfHtml(invoice, appName) {
         .item-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 13px;
+          font-size: 12px;
           break-inside: avoid;
           page-break-inside: avoid;
         }
@@ -211,21 +211,21 @@ function buildInvoicePdfHtml(invoice, appName) {
         .print-th {
           border: 1px solid #94a3b8;
           background: #f1f5f9;
-          padding: 8px 12px;
+          padding: 6px 8px;
           font-weight: 900;
           text-align: left;
         }
 
         .print-td {
           border: 1px solid #cbd5e1;
-          padding: 8px 12px;
+          padding: 6px 8px;
         }
 
         .print-total {
           border: 1px solid #94a3b8;
           background: #f1f5f9;
-          padding: 10px 12px;
-          font-size: 15px;
+          padding: 7px 8px;
+          font-size: 13px;
           font-weight: 900;
         }
 
@@ -234,7 +234,7 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         @page {
-          size: A4 portrait;
+          size: 150mm 210mm;
           margin: 0;
         }
       </style>
