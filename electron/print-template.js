@@ -127,9 +127,16 @@ function buildInvoicePdfHtml(invoice, appName) {
         }
 
         .print-page {
-          width: 150mm;
-          min-height: 210mm;
+          width: 100%;
+          min-height: auto;
           padding: 7mm 8mm;
+          margin: 0;
+          box-sizing: border-box;
+        }
+
+        @page {
+          size: A4 portrait;
+          margin: 0;
         }
 
         .title-block {
@@ -232,11 +239,6 @@ function buildInvoicePdfHtml(invoice, appName) {
         .text-center {
           text-align: center;
         }
-
-        @page {
-          size: 150mm 210mm;
-          margin: 0;
-        }
       </style>
     </head>
     <body>
@@ -258,8 +260,8 @@ function buildInvoicePdfHtml(invoice, appName) {
           <div class="items-layout">
             ${singleItem ? `<div class="items-single"><div class="item-card item-card--single">${itemTable(singleItem, 0)}</div></div>` : ''}
             ${itemRows.map((rowItems, rowIndex) => (
-              `<div class="items-grid-two">${rowItems.map((item, itemIndex) => `<div class="item-card">${itemTable(item, rowIndex * 2 + itemIndex)}</div>`).join('')}</div>`
-            )).join('')}
+    `<div class="items-grid-two">${rowItems.map((item, itemIndex) => `<div class="item-card">${itemTable(item, rowIndex * 2 + itemIndex)}</div>`).join('')}</div>`
+  )).join('')}
           </div>
         </div>
       </section>
