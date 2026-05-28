@@ -110,7 +110,7 @@ body {
   border: 0;
 }
 
-.print-page {
+/* .print-page {
   width: 150mm;
   min-height: 210mm;
   max-width: calc(100vw - 2rem);
@@ -129,5 +129,49 @@ body {
     max-width: none !important;
     margin: 0 !important;
     box-shadow: none !important;
+  }
+} */
+
+.print-page {
+  width: 100%;
+  min-height: auto;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 7mm 8mm !important;
+  margin: 0 !important;
+}
+
+@media print {
+  @page {
+    size: A4 portrait; /* or the real paper size you print on */
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .no-print,
+  header {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  .print-page {
+    width: 100% !important;
+    min-height: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
